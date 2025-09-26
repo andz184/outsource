@@ -994,12 +994,21 @@
             try {
                 const body = { action: 'update', sheetId: SHEET_ID, sheetName: SHEET_DETAIL, data: payload };
                 const res = await fetch(SAVE_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), mode: 'cors' });
-                if (!res.ok) throw new Error('Save failed');
-                loadStatus.textContent = 'Đã lưu.';
-                setEditable(false);
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error('API Error:', errorText);
+                    throw new Error(`Save failed: ${errorText}`);
+                }
+                const result = await res.json();
+                if (result.ok) {
+                    loadStatus.textContent = 'Đã lưu.';
+                    setEditable(false);
+                } else {
+                    throw new Error(result.error || 'Save failed');
+                }
             } catch (e) {
                 console.error(e);
-                loadStatus.textContent = 'Lỗi lưu.';
+                loadStatus.textContent = 'Lỗi lưu: ' + e.message;
             }
         });
 
@@ -1016,11 +1025,20 @@
             try {
                 const body = { action: 'delete', sheetId: SHEET_ID, sheetName: SHEET_DETAIL, id };
                 const res = await fetch(DELETE_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), mode: 'cors' });
-                if (!res.ok) throw new Error('Delete failed');
-                loadStatus.textContent = 'Đã xóa.';
+                if (!res.ok) {
+                    const errorText = await res.text();
+                    console.error('API Error:', errorText);
+                    throw new Error(`Delete failed: ${errorText}`);
+                }
+                const result = await res.json();
+                if (result.ok) {
+                    loadStatus.textContent = 'Đã xóa.';
+                } else {
+                    throw new Error(result.error || 'Delete failed');
+                }
             } catch (e) {
                 console.error(e);
-                loadStatus.textContent = 'Lỗi xóa.';
+                loadStatus.textContent = 'Lỗi xóa: ' + e.message;
             }
         });
 

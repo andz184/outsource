@@ -29,8 +29,14 @@ export default async function handler(req, res) {
     const sheets = google.sheets({ version: 'v4', auth: jwt });
 
     if (action === 'update') {
-      if (!sheetId || !sheetName || !data || !data.id) {
-        return res.status(400).json({ ok: false, error: 'Missing sheetId/sheetName/data.id' });
+      if (!sheetId || !sheetName || !data) {
+        return res.status(400).json({ ok: false, error: 'Missing sheetId/sheetName/data' });
+      }
+      
+      // Use ID from data or from separate id field
+      const recordId = data.ID || data.id || id;
+      if (!recordId) {
+        return res.status(400).json({ ok: false, error: 'Missing ID field' });
       }
 
       // Read header
@@ -55,11 +61,11 @@ export default async function handler(req, res) {
         range: `${sheetName}!A:A`,
       });
       const colA = idResp.data.values?.map(r => r[0]) || [];
-      let rowIndex = colA.findIndex((v, i) => i > 0 && String(v || '').trim().toLowerCase() === String(data.id).trim().toLowerCase());
+      let rowIndex = colA.findIndex((v, i) => i > 0 && String(v || '').trim().toLowerCase() === String(recordId).trim().toLowerCase());
       if (rowIndex === -1) {
         // append
         const row = headers.map(h => valueByHeader(h, data));
-        row[0] = data.id; // ensure ID at col A
+        row[0] = recordId; // ensure ID at col A
         await sheets.spreadsheets.values.append({
           spreadsheetId: sheetId,
           range: sheetName,
@@ -86,7 +92,7 @@ export default async function handler(req, res) {
           currMap[targetHeader] = data[k];
         });
         // ensure ID in first column
-        currMap[headers[0]] = data.id;
+        currMap[headers[0]] = recordId;
         // Reconstruct row in header order
         const row = headers.map(h => currMap[h] ?? valueByHeader(h, data) ?? '');
         const range = currRange;
