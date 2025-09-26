@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Xe và Đơn hàng</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        .nav-tabs {
+            display: flex;
+            background: #34495e;
+            border-bottom: 1px solid #2c3e50;
+        }
+        .nav-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            color: #ecf0f1;
+            border-right: 1px solid #2c3e50;
+            transition: background 0.3s;
+        }
+        .nav-tab:last-child {
+            border-right: none;
+        }
+        .nav-tab.active {
+            background: #3498db;
+        }
+        .nav-tab:hover {
+            background: #2980b9;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            background: #2980b9;
+        }
+        .btn-success {
+            background: #27ae60;
+        }
+        .btn-success:hover {
+            background: #229954;
+        }
+        .btn-danger {
+            background: #e74c3c;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .table th, .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #bdc3c7;
+        }
+        .table th {
+            background: #ecf0f1;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .table tr:hover {
+            background: #f8f9fa;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-pending {
+            background: #f39c12;
+            color: white;
+        }
+        .status-in-transit {
+            background: #3498db;
+            color: white;
+        }
+        .status-delivered {
+            background: #27ae60;
+            color: white;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 600px;
+        }
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover {
+            color: #000;
+        }
+        .search-box {
+            margin-bottom: 20px;
+        }
+        .search-box input {
+            width: 300px;
+            padding: 8px;
+            border: 1px solid #bdc3c7;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Quản lý Xe và Đơn hàng</h1>
+            <p>Hệ thống quản lý xe vận tải và phân phối đơn hàng</p>
+        </div>
+
+        <div class="nav-tabs">
+            <div class="nav-tab active" onclick="showTab('vehicles')">Quản lý Xe</div>
+            <div class="nav-tab" onclick="showTab('assignments')">Phân phối Đơn hàng</div>
+            <div class="nav-tab" onclick="showTab('status')">Trạng thái Xe</div>
+            <div class="nav-tab" onclick="showTab('unassigned')">Đơn chưa xếp</div>
+        </div>
+
+        <!-- Tab 1: Quản lý Xe -->
+        <div id="vehicles" class="tab-content active">
+            <div class="form-group">
+                <button class="btn btn-success" onclick="showVehicleModal()">Thêm Xe mới</button>
+            </div>
+            
+            <div class="search-box">
+                <input type="text" id="vehicleSearch" placeholder="Tìm kiếm xe..." onkeyup="filterVehicles()">
+            </div>
+            
+            <table class="table" id="vehicleTable">
+                <thead>
+                    <tr>
+                        <th>ID Xe</th>
+                        <th>Biển số</th>
+                        <th>Tài xế</th>
+                        <th>SĐT Tài xế</th>
+                        <th>Ngày xuất xe</th>
+                        <th>Ngày dự kiến</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="vehicleTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 2: Phân phối Đơn hàng -->
+        <div id="assignments" class="tab-content">
+            <div class="form-group">
+                <button class="btn btn-success" onclick="showAssignmentModal()">Phân phối Đơn hàng</button>
+            </div>
+            
+            <table class="table" id="assignmentTable">
+                <thead>
+                    <tr>
+                        <th>ID Phân phối</th>
+                        <th>ID Xe</th>
+                        <th>ID Đơn hàng</th>
+                        <th>Số thứ tự</th>
+                        <th>Số lượng hàng</th>
+                        <th>Ghi chú</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="assignmentTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Tab 3: Trạng thái Xe -->
+        <div id="status" class="tab-content">
+            <h3>Trạng thái các Xe</h3>
+            <div id="vehicleStatusList">
+            </div>
+        </div>
+
+        <!-- Tab 4: Đơn chưa xếp -->
+        <div id="unassigned" class="tab-content">
+            <h3>Đơn hàng chưa xếp hoặc xếp chưa hết</h3>
+            <table class="table" id="unassignedTable">
+                <thead>
+                    <tr>
+                        <th>ID Đơn hàng</th>
+                        <th>Tên khách hàng</th>
+                        <th>Số lượng tổng</th>
+                        <th>Đã xếp</th>
+                        <th>Còn lại</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="unassignedTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal Thêm/Sửa Xe -->
+    <div id="vehicleModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeVehicleModal()">&times;</span>
+            <h2 id="vehicleModalTitle">Thêm Xe mới</h2>
+            <form id="vehicleForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ID Xe:</label>
+                        <input type="text" id="vehicleId" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Biển số:</label>
+                        <input type="text" id="vehiclePlate" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tài xế:</label>
+                        <input type="text" id="vehicleDriver" required>
+                    </div>
+                    <div class="form-group">
+                        <label>SĐT Tài xế:</label>
+                        <input type="text" id="vehicleDriverPhone" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ngày xuất xe:</label>
+                        <input type="date" id="vehicleDepartureDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ngày dự kiến:</label>
+                        <input type="date" id="vehicleExpectedDate" readonly>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Trạng thái:</label>
+                    <select id="vehicleStatus">
+                        <option value="pending">Chờ xếp hàng</option>
+                        <option value="in-transit">Đang vận chuyển</option>
+                        <option value="delivered">Đã giao hàng</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-success">Lưu</button>
+                    <button type="button" class="btn" onclick="closeVehicleModal()">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Phân phối Đơn hàng -->
+    <div id="assignmentModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAssignmentModal()">&times;</span>
+            <h2>Phân phối Đơn hàng</h2>
+            <form id="assignmentForm">
+                <div class="form-group">
+                    <label>Chọn Xe:</label>
+                    <select id="assignmentVehicle" required>
+                        <option value="">-- Chọn xe --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Chọn Đơn hàng:</label>
+                    <select id="assignmentBill" required>
+                        <option value="">-- Chọn đơn hàng --</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Số thứ tự:</label>
+                        <input type="number" id="assignmentOrder" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Số lượng hàng:</label>
+                        <input type="number" id="assignmentQuantity" min="1" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Ghi chú:</label>
+                    <textarea id="assignmentNote" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-success">Lưu</button>
+                    <button type="button" class="btn" onclick="closeAssignmentModal()">Hủy</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const SHEET_ID = '1SbK_vKUJV7dTzDPmxmlEM-7MXBoh6guGRKU4dWvAiw4';
+        const VEHICLE_SHEET = 'Xe';
+        const BILL_SHEET = 'Bill';
+        const ASSIGNMENT_SHEET = 'XepHang';
+        const CUSTOMER_SHEET = 'Khách hàng';
+
+        // Data storage
+        let vehicles = [];
+        let bills = [];
+        let assignments = [];
+        let customers = [];
+        let currentVehicleId = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAllData();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Vehicle form
+            document.getElementById('vehicleForm').addEventListener('submit', saveVehicle);
+            document.getElementById('vehicleDepartureDate').addEventListener('change', calculateExpectedDate);
+            
+            // Assignment form
+            document.getElementById('assignmentForm').addEventListener('submit', saveAssignment);
+        }
+
+        function calculateExpectedDate() {
+            const departureDate = document.getElementById('vehicleDepartureDate').value;
+            if (departureDate) {
+                const date = new Date(departureDate);
+                date.setDate(date.getDate() + 3);
+                document.getElementById('vehicleExpectedDate').value = date.toISOString().split('T')[0];
+            }
+        }
+
+        function showTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Load data for specific tabs
+            if (tabName === 'status') {
+                loadVehicleStatus();
+            } else if (tabName === 'unassigned') {
+                loadUnassignedOrders();
+            }
+        }
+
+        async function loadAllData() {
+            try {
+                await Promise.all([
+                    loadVehicles(),
+                    loadBills(),
+                    loadAssignments(),
+                    loadCustomers()
+                ]);
+                renderAllTables();
+            } catch (error) {
+                console.error('Error loading data:', error);
+                alert('Lỗi tải dữ liệu: ' + error.message);
+            }
+        }
+
+        async function loadVehicles() {
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${VEHICLE_SHEET}&tqx=out:json`;
+            const response = await fetch(url);
+            const text = await response.text();
+            const json = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            
+            vehicles = [];
+            if (json.table && json.table.rows) {
+                const headers = json.table.cols.map(c => c.label || '');
+                console.log('Headers found:', headers); // Debug log
+                
+                json.table.rows.forEach((row, index) => {
+                    const raw = {};
+                    row.c.forEach((cell, i) => {
+                        raw[headers[i]] = cell ? cell.v : '';
+                    });
+                    
+                    // Map theo tên cột thực tế trong sheet xe của bạn
+                    const vehicle = {
+                        ID: raw['ID'] || raw['id'],
+                        'Biển số': raw['Biển kiểm soát'] || raw['Bien kiem soat'],
+                        'Tài xế': raw['Lái xe'] || raw['Lai xe'],
+                        'SĐT Tài xế': raw['SBT lái xe'] || raw['SĐT lái xe'],
+                        'Ngày xuất xe': raw['NgayXuat'] || raw['Ngày xuất'],
+                        'Ngày dự kiến': raw['NgayDuKien'] || raw['Ngày dự kiến'],
+                        'Trạng thái': raw['TrangThai'] || raw['Trạng thái'] || 'pending',
+                        'Ghi chú': raw['GhiChu'] || raw['Ghi chú']
+                    };
+                    
+                    if (vehicle.ID) {
+                        vehicles.push(vehicle);
+                        console.log('Loaded vehicle:', vehicle); // Debug log
+                    }
+                });
+            }
+            console.log('Total vehicles loaded:', vehicles.length); // Debug log
+        }
+
+        async function loadBills() {
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${BILL_SHEET}&tqx=out:json`;
+            const response = await fetch(url);
+            const text = await response.text();
+            const json = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            
+            bills = [];
+            if (json.table && json.table.rows) {
+                const headers = json.table.cols.map(c => c.label || '');
+                json.table.rows.forEach((row, index) => {
+                    if (index === 0) return; // Skip header
+                    const bill = {};
+                    row.c.forEach((cell, i) => {
+                        bill[headers[i]] = cell ? cell.v : '';
+                    });
+                    if (bill.ID) bills.push(bill);
+                });
+            }
+        }
+
+        async function loadAssignments() {
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${ASSIGNMENT_SHEET}&tqx=out:json`;
+            const response = await fetch(url);
+            const text = await response.text();
+            const json = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            
+            assignments = [];
+            if (json.table && json.table.rows) {
+                const headers = json.table.cols.map(c => c.label || '');
+                json.table.rows.forEach((row, index) => {
+                    if (index === 0) return; // Skip header
+                    const assignment = {};
+                    row.c.forEach((cell, i) => {
+                        assignment[headers[i]] = cell ? cell.v : '';
+                    });
+                    if (assignment.ID) assignments.push(assignment);
+                });
+            }
+        }
+
+        async function loadCustomers() {
+            const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?sheet=${CUSTOMER_SHEET}&tqx=out:json`;
+            const response = await fetch(url);
+            const text = await response.text();
+            const json = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            
+            customers = [];
+            if (json.table && json.table.rows) {
+                const headers = json.table.cols.map(c => c.label || '');
+                json.table.rows.forEach((row, index) => {
+                    if (index === 0) return; // Skip header
+                    const customer = {};
+                    row.c.forEach((cell, i) => {
+                        customer[headers[i]] = cell ? cell.v : '';
+                    });
+                    if (customer.ID) customers.push(customer);
+                });
+            }
+        }
+
+        function renderAllTables() {
+            renderVehicleTable();
+            renderAssignmentTable();
+            loadVehicleStatus();
+            loadUnassignedOrders();
+        }
+
+        function renderVehicleTable() {
+            const tbody = document.getElementById('vehicleTableBody');
+            tbody.innerHTML = '';
+            
+            vehicles.forEach(vehicle => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${vehicle.ID || ''}</td>
+                    <td>${vehicle['Biển số'] || ''}</td>
+                    <td>${vehicle['Tài xế'] || ''}</td>
+                    <td>${vehicle['SĐT Tài xế'] || ''}</td>
+                    <td>${vehicle['Ngày xuất xe'] || ''}</td>
+                    <td>${vehicle['Ngày dự kiến'] || ''}</td>
+                    <td><span class="status-badge status-${vehicle['Trạng thái'] || 'pending'}">${getStatusText(vehicle['Trạng thái'])}</span></td>
+                    <td>
+                        <button class="btn" onclick="editVehicle('${vehicle.ID}')">Sửa</button>
+                        <button class="btn btn-danger" onclick="deleteVehicle('${vehicle.ID}')">Xóa</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function renderAssignmentTable() {
+            const tbody = document.getElementById('assignmentTableBody');
+            tbody.innerHTML = '';
+            
+            assignments.forEach(assignment => {
+                const vehicle = vehicles.find(v => v.ID === assignment['Xe']);
+                const bill = bills.find(b => b.ID === assignment['Bill']);
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${assignment.ID || ''}</td>
+                    <td>${vehicle ? vehicle['Biển số'] : assignment['Xe']}</td>
+                    <td>${bill ? bill['Tên đơn hàng'] : assignment['Bill']}</td>
+                    <td>${assignment['Số thứ tự'] || ''}</td>
+                    <td>${assignment['Số lượng hàng'] || ''}</td>
+                    <td>${assignment['Ghi chú'] || ''}</td>
+                    <td>
+                        <button class="btn" onclick="editAssignment('${assignment.ID}')">Sửa</button>
+                        <button class="btn btn-danger" onclick="deleteAssignment('${assignment.ID}')">Xóa</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function loadVehicleStatus() {
+            const container = document.getElementById('vehicleStatusList');
+            container.innerHTML = '';
+            
+            vehicles.forEach(vehicle => {
+                const vehicleAssignments = assignments.filter(a => a['Xe'] === vehicle.ID);
+                const div = document.createElement('div');
+                div.style.cssText = 'border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px;';
+                div.innerHTML = `
+                    <h4>Xe ${vehicle['Biển số']} - ${vehicle['Tài xế']} <span class="status-badge status-${vehicle['Trạng thái'] || 'pending'}">${getStatusText(vehicle['Trạng thái'])}</span></h4>
+                    <p><strong>Ngày xuất xe:</strong> ${vehicle['Ngày xuất xe'] || ''}</p>
+                    <p><strong>Ngày dự kiến:</strong> ${vehicle['Ngày dự kiến'] || ''}</p>
+                    <h5>Đơn hàng đã xếp:</h5>
+                    <ul>
+                        ${vehicleAssignments.map(a => {
+                            const bill = bills.find(b => b.ID === a['Bill']);
+                            return `<li>${bill ? bill['Tên đơn hàng'] : a['Bill']} - Số lượng: ${a['Số lượng hàng']}</li>`;
+                        }).join('')}
+                    </ul>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function loadUnassignedOrders() {
+            const tbody = document.getElementById('unassignedTableBody');
+            tbody.innerHTML = '';
+            
+            bills.forEach(bill => {
+                const billAssignments = assignments.filter(a => a['Bill'] === bill.ID);
+                const totalAssigned = billAssignments.reduce((sum, a) => sum + (parseInt(a['Số lượng hàng']) || 0), 0);
+                const totalQuantity = parseInt(bill['Số lượng'] || 0);
+                const remaining = totalQuantity - totalAssigned;
+                
+                if (remaining > 0) {
+                    const customer = customers.find(c => c.ID === bill['Khách hàng']);
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${bill.ID || ''}</td>
+                        <td>${customer ? customer['Tên khách hàng'] : bill['Khách hàng']}</td>
+                        <td>${totalQuantity}</td>
+                        <td>${totalAssigned}</td>
+                        <td>${remaining}</td>
+                        <td>
+                            <button class="btn btn-success" onclick="assignBill('${bill.ID}')">Xếp hàng</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                }
+            });
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'pending': 'Chờ xếp hàng',
+                'in-transit': 'Đang vận chuyển',
+                'delivered': 'Đã giao hàng'
+            };
+            return statusMap[status] || 'Chờ xếp hàng';
+        }
+
+        function showVehicleModal(vehicleId = null) {
+            currentVehicleId = vehicleId;
+            const modal = document.getElementById('vehicleModal');
+            const title = document.getElementById('vehicleModalTitle');
+            const form = document.getElementById('vehicleForm');
+            
+            if (vehicleId) {
+                title.textContent = 'Sửa Xe';
+                const vehicle = vehicles.find(v => v.ID === vehicleId);
+                if (vehicle) {
+                    document.getElementById('vehicleId').value = vehicle.ID;
+                    document.getElementById('vehiclePlate').value = vehicle['Biển số'] || '';
+                    document.getElementById('vehicleDriver').value = vehicle['Tài xế'] || '';
+                    document.getElementById('vehicleDriverPhone').value = vehicle['SĐT Tài xế'] || '';
+                    document.getElementById('vehicleDepartureDate').value = vehicle['Ngày xuất xe'] || '';
+                    document.getElementById('vehicleExpectedDate').value = vehicle['Ngày dự kiến'] || '';
+                    document.getElementById('vehicleStatus').value = vehicle['Trạng thái'] || 'pending';
+                }
+            } else {
+                title.textContent = 'Thêm Xe mới';
+                form.reset();
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeVehicleModal() {
+            document.getElementById('vehicleModal').style.display = 'none';
+            currentVehicleId = null;
+        }
+
+        function showAssignmentModal(assignmentId = null) {
+            const modal = document.getElementById('assignmentModal');
+            const vehicleSelect = document.getElementById('assignmentVehicle');
+            const billSelect = document.getElementById('assignmentBill');
+            
+            // Populate vehicle options
+            vehicleSelect.innerHTML = '<option value="">-- Chọn xe --</option>';
+            vehicles.forEach(vehicle => {
+                const option = document.createElement('option');
+                option.value = vehicle.ID;
+                option.textContent = `${vehicle['Biển số']} - ${vehicle['Tài xế']}`;
+                vehicleSelect.appendChild(option);
+            });
+            
+            // Populate bill options
+            billSelect.innerHTML = '<option value="">-- Chọn đơn hàng --</option>';
+            bills.forEach(bill => {
+                const option = document.createElement('option');
+                option.value = bill.ID;
+                option.textContent = `${bill['Tên đơn hàng']} - ${bill['Số lượng']} đơn vị`;
+                billSelect.appendChild(option);
+            });
+            
+            modal.style.display = 'block';
+        }
+
+        function closeAssignmentModal() {
+            document.getElementById('assignmentModal').style.display = 'none';
+        }
+
+        function assignBill(billId) {
+            showAssignmentModal();
+            document.getElementById('assignmentBill').value = billId;
+        }
+
+        function filterVehicles() {
+            const searchTerm = document.getElementById('vehicleSearch').value.toLowerCase();
+            const rows = document.querySelectorAll('#vehicleTableBody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(searchTerm) ? '' : 'none';
+            });
+        }
+
+        async function saveVehicle(event) {
+            event.preventDefault();
+            
+            const vehicleData = {
+                ID: document.getElementById('vehicleId').value,
+                'Biển kiểm soát': document.getElementById('vehiclePlate').value,
+                'Lái xe': document.getElementById('vehicleDriver').value,
+                'SBT lái xe': document.getElementById('vehicleDriverPhone').value,
+                'NgayXuat': document.getElementById('vehicleDepartureDate').value,
+                'NgayDuKien': document.getElementById('vehicleExpectedDate').value,
+                'TrangThai': document.getElementById('vehicleStatus').value,
+                'GhiChu': document.getElementById('vehicleNote')?.value || ''
+            };
+            
+            try {
+                // Gửi lên API để lưu vào Google Sheet
+                const response = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'update',
+                        sheetId: SHEET_ID,
+                        sheetName: VEHICLE_SHEET,
+                        data: vehicleData
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Lỗi lưu vào sheet');
+                }
+                
+                // Cập nhật local data
+                if (currentVehicleId) {
+                    const index = vehicles.findIndex(v => v.ID === currentVehicleId);
+                    if (index !== -1) {
+                        vehicles[index] = vehicleData;
+                    }
+                } else {
+                    vehicles.push(vehicleData);
+                }
+                
+                renderVehicleTable();
+                closeVehicleModal();
+                alert('Đã lưu xe vào Google Sheet thành công!');
+                
+            } catch (error) {
+                console.error('Error saving vehicle:', error);
+                alert('Lỗi lưu xe: ' + error.message);
+            }
+        }
+
+        async function saveAssignment(event) {
+            event.preventDefault();
+            
+            const assignmentData = {
+                ID: 'ASS' + Date.now(),
+                'Xe': document.getElementById('assignmentVehicle').value,
+                'Bill': document.getElementById('assignmentBill').value,
+                'Số thứ tự': document.getElementById('assignmentOrder').value,
+                'Số lượng hàng': document.getElementById('assignmentQuantity').value,
+                'Ghi chú': document.getElementById('assignmentNote').value
+            };
+            
+            try {
+                // Gửi lên API để lưu vào Google Sheet
+                const response = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'update',
+                        sheetId: SHEET_ID,
+                        sheetName: ASSIGNMENT_SHEET,
+                        data: assignmentData
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Lỗi lưu phân phối vào sheet');
+                }
+                
+                // Cập nhật local data
+                assignments.push(assignmentData);
+                renderAssignmentTable();
+                loadUnassignedOrders();
+                closeAssignmentModal();
+                alert('Đã phân phối đơn hàng vào Google Sheet thành công!');
+                
+            } catch (error) {
+                console.error('Error saving assignment:', error);
+                alert('Lỗi lưu phân phối: ' + error.message);
+            }
+        }
+
+        function editVehicle(vehicleId) {
+            showVehicleModal(vehicleId);
+        }
+
+        async function deleteVehicle(vehicleId) {
+            if (confirm('Bạn có chắc muốn xóa xe này?')) {
+                try {
+                    // Gửi lên API để xóa khỏi Google Sheet
+                    const response = await fetch('/api/report', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'delete',
+                            sheetId: SHEET_ID,
+                            sheetName: VEHICLE_SHEET,
+                            id: vehicleId
+                        })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Lỗi xóa khỏi sheet');
+                    }
+                    
+                    // Cập nhật local data
+                    vehicles = vehicles.filter(v => v.ID !== vehicleId);
+                    assignments = assignments.filter(a => a['Xe'] !== vehicleId);
+                    renderAllTables();
+                    alert('Đã xóa xe khỏi Google Sheet thành công!');
+                    
+                } catch (error) {
+                    console.error('Error deleting vehicle:', error);
+                    alert('Lỗi xóa xe: ' + error.message);
+                }
+            }
+        }
+
+        function editAssignment(assignmentId) {
+            // Implementation for editing assignment
+            alert('Chức năng sửa phân phối đang được phát triển');
+        }
+
+        function deleteAssignment(assignmentId) {
+            if (confirm('Bạn có chắc muốn xóa phân phối này?')) {
+                assignments = assignments.filter(a => a.ID !== assignmentId);
+                renderAssignmentTable();
+                loadUnassignedOrders();
+                alert('Đã xóa phân phối thành công!');
+            }
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const vehicleModal = document.getElementById('vehicleModal');
+            const assignmentModal = document.getElementById('assignmentModal');
+            
+            if (event.target === vehicleModal) {
+                closeVehicleModal();
+            }
+            if (event.target === assignmentModal) {
+                closeAssignmentModal();
+            }
+        }
+    </script>
+</body>
+</html>
