@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhật ký Thi công</title>
+    <style>
+        /* General styles for both pages */
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .container {
+            width: 210mm; /* A4 width */
+            min-height: 297mm; /* A4 height */
+            margin: 20px auto;
+            padding: 20mm;
+            box-sizing: border-box;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: relative; /* Needed for watermark positioning */
+            overflow: hidden; /* Hide watermark overflow */
+        }
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+            opacity: 0.2; /* Made it a bit darker */
+            pointer-events: none;
+            width: 80%;
+            max-width: 600px; /* Made it larger */
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .logo {
+            width: 100px; /* Adjust size as needed */
+            height: auto;
+        }
+        .title-container {
+            flex-grow: 1;
+        }
+        .header-placeholder {
+            width: 100px; /* Same width as the logo to ensure perfect centering */
+        }
+        h2, h3 {
+            text-align: center;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        input[type="text"],
+        textarea {
+            border: none;
+            border-bottom: 1px dotted #000;
+            width: 100%;
+            padding: 2px 0;
+            background-color: transparent;
+            font-family: inherit;
+            font-size: inherit;
+        }
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+        }
+        .form-group, .form-section {
+            margin-bottom: 15px;
+        }
+        .form-group > label, .form-section > label, .main-label {
+            font-weight: bold;
+        }
+        .page-number {
+            position: absolute;
+            bottom: 20mm;
+            right: 20mm;
+            text-align: right;
+        }
+
+
+        /* Styles for Page 1 (Daily Log) */
+        .page-1 .date-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .page-1 .weather-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        .page-1 .temp-inputs {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .page-1 .temp-inputs label {
+            font-weight: normal;
+        }
+        .page-1 .weather-section input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        .page-1 textarea {
+            min-height: 80px;
+            resize: vertical;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px;
+        }
+        .page-1 .sub-label {
+             display: block;
+             margin-top: 10px;
+        }
+
+        /* Styles for Page 2 (Cover) */
+        .page-2 h3 {
+           margin-bottom: 0;
+        }
+        .page-2 .inline-input {
+            display: flex;
+            align-items: baseline;
+        }
+        .page-2 .inline-input label {
+            white-space: nowrap;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .page-2 .sub-item {
+            padding-left: 20px;
+        }
+        .page-2 .contractor-title {
+            font-size: 16px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .page-2 .two-col {
+            display: flex;
+            justify-content: space-between;
+            gap: 40px;
+            margin: 20px 0;
+        }
+        .page-2 .col {
+            width: 50%;
+        }
+        .page-2 .signature-block {
+            margin-top: 30px;
+        }
+        .page-2 .final-signature {
+            margin-top: 20px;
+            float: right;
+            text-align: center;
+            width: 300px;
+        }
+        .page-2 .final-signature .date {
+            font-style: italic;
+        }
+        .page-2 .final-signature .role, .page-2 .final-signature .name {
+            font-weight: bold;
+        }
+        
+        /* Styles for Image Page */
+        .page-images .date-section {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, auto);
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .image-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .image-item .image-placeholder {
+            width: 100%;
+            height: 240px;
+            background-color: #f0f0f0;
+            border: 2px dashed #ccc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #999;
+            font-style: italic;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            overflow: hidden; /* ensure inner image never overflows */
+        }
+        .image-item .image-placeholder:hover {
+            background-color: #e9e9e9;
+            border-color: #aaa;
+        }
+        .image-item .image-placeholder img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* fit inside frame, no overflow */
+            display: block;
+        }
+        .image-item textarea {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px;
+            resize: vertical;
+            min-height: 60px;
+            background-color: #fff; /* Ensure textarea is not transparent */
+        }
+
+
+        /* Print styles */
+        @media print {
+            body {
+                background-color: white;
+            }
+            .container {
+                margin: 0;
+                box-shadow: none;
+                page-break-after: always; /* Creates a page break after each container */
+            }
+            .container:last-child {
+                page-break-after: auto;
+            }
+            .watermark {
+                opacity: 0.15 !important; /* Ensure watermark is faint for printing */
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div style="position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #eee; padding: 8px 12px; display: flex; gap: 8px; align-items: center;">
+    <label for="recordIdInput" style="white-space: nowrap; font-weight: bold;">Mã bản ghi:</label>
+    <input id="recordIdInput" type="text" placeholder="Nhập ID (ví dụ: NK-001)" style="max-width: 220px;">
+    <button id="loadBtn" type="button" style="padding: 6px 10px; cursor: pointer;">Tải dữ liệu</button>
+    <span id="loadStatus" style="margin-left: 8px; color: #666;"></span>
+</div>
+
+<div class="container page-2">
+    <img src="https://www.appsheet.com/template/gettablefileurl?appName=Appsheet-325045268&tableName=Kho%20%E1%BA%A3nh&fileName=Kho%20%E1%BA%A3nh_Images%2F61cc680f.%E1%BA%A2nh.053502.png" alt="Watermark" class="watermark">
+    <div class="content-wrapper">
+        <div class="header">
+            <img src="https://www.appsheet.com/template/gettablefileurl?appName=Appsheet-325045268&tableName=Kho%20%E1%BA%A3nh&fileName=Kho%20%E1%BA%A3nh_Images%2F87f535c0.%E1%BA%A2nh.054502.png" alt="Logo" class="logo">
+            <div class="title-container">
+                <h2>NHẬT KÝ THI CÔNG XÂY DỰNG CÔNG TRÌNH</h2>
+                <h3>QUYỂN SỐ: ..../NKCT-NV</h3>
+            </div>
+            <div class="header-placeholder"></div>
+        </div>
+
+        <form>
+            <div class="form-section inline-input">
+                <label>1. Tên công trình (hạng mục công trình):</label>
+                <input id="cong_trinh" type="text">
+            </div>
+            <div class="form-section inline-input">
+                <label>2. Địa điểm xây dựng:</label>
+                <input id="dia_diem" type="text">
+            </div>
+            <div class="form-section inline-input">
+                <label>3. Chủ đầu tư:</label>
+                <input id="chu_dau_tu" type="text">
+            </div>
+            <div class="form-section inline-input sub-item">
+                <label>Điện thoại:</label>
+                <input id="chu_dau_tu_dien_thoai" type="text">
+            </div>
+            <div class="form-section inline-input">
+                <label>4. Nhà thầu tư vấn giám sát thi công xây dựng công trình:</label>
+                <input id="giam_sat_nha_thau" type="text">
+            </div>
+            <div class="form-section inline-input sub-item">
+                <label>Họ và tên kỹ sư giám sát:</label>
+                <input id="giam_sat_ho_ten" type="text">
+            </div>
+             <div class="form-section inline-input sub-item">
+                <label>Điện thoại:</label>
+                <input id="giam_sat_dien_thoai" type="text">
+            </div>
+            <div class="form-section inline-input">
+                <label>5. Nhà thầu thi công xây dựng công trình:</label>
+                <input id="nha_thau_thi_cong" type="text">
+            </div>
+            <p class="contractor-title">ĐƠN VỊ THI CÔNG</p>
+             <div class="form-section inline-input sub-item">
+                <label>Họ và tên chỉ huy trưởng công trường:</label>
+                <input id="chi_huy_truong" type="text">
+            </div>
+             <div class="form-section inline-input sub-item">
+                <label>Điện thoại:</label>
+                <input id="chi_huy_dien_thoai" type="text">
+            </div>
+            <div class="form-section inline-input">
+                <label>6. Tên nhà thầu thiết kế kỹ thuật, thiết kế bản vẽ thi công:</label>
+                <input id="nha_thau_thiet_ke" type="text">
+            </div>
+            <div class="form-section inline-input">
+                <label>Họ và tên kiến trúc sư chủ trì:</label>
+                <input id="kien_truc_su_chu_tri" type="text">
+            </div>
+            <div class="form-section inline-input">
+                <label>Họ và tên kỹ sư chủ trì:</label>
+                <input id="ky_su_chu_tri" type="text">
+            </div>
+
+            <div class="two-col">
+                <div class="col inline-input">
+                    <label>Khởi công theo hợp đồng ngày</label>
+                    <input id="khoi_cong_hop_dong" type="text">
+                </div>
+                <div class="col inline-input">
+                    <label>Thực tế</label>
+                    <input id="khoi_cong_thuc_te" type="text">
+                </div>
+            </div>
+            <div class="two-col" style="margin-top: -15px;">
+                <div class="col inline-input">
+                    <label>Bàn giao theo hợp đồng ngày</label>
+                    <input id="ban_giao_hop_dong" type="text">
+                </div>
+                <div class="col inline-input">
+                    <label>Thực tế</label>
+                    <input id="ban_giao_thuc_te" type="text">
+                </div>
+            </div>
+            
+            <p style="line-height: 1.8;">Sổ này gồm: 33 trang, đánh số thứ tự từ 01 đến số 33<br>đóng dấu giáp lai và chữ ký của ông:</p>
+
+            <div class="signature-block">
+                <label class="main-label">Họ tên, chữ ký người phụ trách thi công công trình và quản lý quyển nhật ký:</label>
+                <div class="two-col">
+                    <div class="col inline-input">
+                        <label>Họ tên:</label>
+                        <input id="phu_trach_thi_cong" type="text">
+                    </div>
+                    <div class="col inline-input">
+                        <label>CHỮ KÝ:</label>
+                    </div>
+                </div>
+            </div>
+            <div class="signature-block">
+                <label class="main-label">Họ tên, chữ ký người phụ trách giám sát thi công của Chủ đầu tư:</label>
+                <div class="two-col">
+                    <div class="col inline-input">
+                        <label>Họ tên:</label>
+                        <input id="giam_sat_chu_dau_tu" type="text">
+                    </div>
+                    <div class="col inline-input">
+                        <label>CHỮ KÝ:</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="final-signature">
+                <p class="date">Ngày ...... tháng ...... năm ......</p>
+                <p class="role">ĐƠN VỊ THI CÔNG</p>
+                <p class="name">Giám đốc</p>
+            </div>
+
+            <div class="page-number">
+                <p>Trang 1/10</p>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="container page-images">
+    <img src="https://www.appsheet.com/template/gettablefileurl?appName=Appsheet-325045268&tableName=Kho%20%E1%BA%A3nh&fileName=Kho%20%E1%BA%A3nh_Images%2F61cc680f.%E1%BA%A2nh.053502.png" alt="Watermark" class="watermark">
+    <div class="content-wrapper">
+        <div class="header">
+            <img src="https://www.appsheet.com/template/gettablefileurl?appName=Appsheet-325045268&tableName=Kho%20%E1%BA%A3nh&fileName=Kho%20%E1%BA%A3nh_Images%2F87f535c0.%E1%BA%A2nh.054502.png" alt="Logo" class="logo">
+            <div class="title-container">
+                <h2>HÌNH ẢNH THI CÔNG</h2>
+            </div>
+            <div class="header-placeholder"></div>
+        </div>
+
+        <div class="date-section">
+            <label id="cover_date_label">Ngày ...... tháng ...... năm 20......</label>
+        </div>
+
+        <div id="imagesContainer" class="image-grid"></div>
+        
+        <div class="page-number">
+             <p>Trang 2/10</p>
+        </div>
+    </div>
+</div>
+
+
+<div class="container page-1">
+    <img src="https://www.appsheet.com/template/gettablefileurl?appName=Appsheet-325045268&tableName=Kho%20%E1%BA%A3nh&fileName=Kho%20%E1%BA%A3nh_Images%2F61cc680f.%E1%BA%A2nh.053502.png" alt="Watermark" class="watermark">
+    <div class="content-wrapper">
+        <div class="header">
+            <img src="https://www.appsheet.com/template/gettablefileurl?appName=Appsheet-325045268&tableName=Kho%20%E1%BA%A3nh&fileName=Kho%20%E1%BA%A3nh_Images%2F87f535c0.%E1%BA%A2nh.054502.png" alt="Logo" class="logo">
+            <div class="title-container">
+                <h2>E. TÌNH HÌNH THI CÔNG HÀNG NGÀY</h2>
+            </div>
+            <div class="header-placeholder"></div>
+        </div>
+
+        <div class="date-section">
+            <label id="daily_date_label" for="date">Ngày ...... tháng ...... năm 20......</label>
+        </div>
+
+        <form>
+            <div class="form-group">
+                <label class="main-label">1. Thời tiết</label>
+                <div class="weather-section">
+                    <div>
+                        <input type="checkbox" id="binhthuong" name="weather" value="binhthuong">
+                        <label for="binhthuong">Bình thường</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="mua" name="weather" value="mua">
+                        <label for="mua">Mưa</label>
+                    </div>
+                    <div>
+                        <input type="checkbox" id="nang" name="weather" value="nang">
+                        <label for="nang">Nắng</label>
+                    </div>
+                </div>
+                <div class="weather-section temp-inputs">
+                     <label>Nhiệt độ:</label>
+                     <label for="sang">Sáng</label>
+                     <input type="text" id="sang" name="temp_sang" size="5" style="border-bottom: 1px dotted #000;">
+                     <label for="trua">Trưa</label>
+                     <input type="text" id="trua" name="temp_trua" size="5" style="border-bottom: 1px dotted #000;">
+                     <label for="chieu">Chiều</label>
+                     <input type="text" id="chieu" name="temp_chieu" size="5" style="border-bottom: 1px dotted #000;">
+                     <label for="toi">Tối</label>
+                     <input type="text" id="toi" name="temp_toi" size="5" style="border-bottom: 1px dotted #000;">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="main-label">2. Tình hình nhân lực, thiết bị thi công:</label>
+                <div>
+                    <label class="sub-label" for="nhanluc">2.1. Nhân lực:</label>
+                    <textarea id="nhan_luc" name="nhanluc"></textarea>
+                </div>
+                <div>
+                    <label class="sub-label" for="thietbi">2.2. Thiết bị:</label>
+                    <textarea id="thiet_bi" name="thietbi"></textarea>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="main-label">3. Tình hình thi công:</label>
+                <div>
+                    <label class="sub-label" for="noidung_khoiluong">3.1. Nội dung, khối lượng công việc và tiến độ thực hiện:</label>
+                    <textarea id="noi_dung_khoi_luong" name="noidung_khoiluong"></textarea>
+                </div>
+                <div>
+                    <label class="sub-label" for="nghiemthu">3.2. Nghiệm thu công việc xây dựng hàng ngày:</label>
+                    <textarea id="nghiem_thu" name="nghiemthu"></textarea>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="main-label" for="suco">4. Mô tả chi tiết các sự cố, hư hỏng và các vấn đề phát sinh khác trong quá trình thi công xây dựng công trình:</label>
+                <textarea id="su_co" name="suco"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="main-label" for="kiennghi">5. Các kiến nghị và những ý kiến chỉ đạo giải quyết các vấn đề phát sinh của các bên có liên quan (Chủ đầu tư, Người giám sát thi công, Người giám sát tác giả)</label>
+                <textarea id="kien_nghi" name="kiennghi"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="main-label" for="nhanxet_kysu">6. Nhận xét của kỹ sư giám sát thi công xây dựng về tình hình và chất lượng công việc xây dựng (ghi rõ họ và tên, chức vụ và chữ ký)</label>
+                <textarea id="nhan_xet_ky_su" name="nhanxet_kysu"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label class="main-label" for="chihuy">7. Chỉ huy trưởng công trường tiếp thu các kiến nghị và nhận xét (họ tên, chữ ký)</label>
+                <textarea id="chi_huy" name="chihuy"></textarea>
+            </div>
+            
+             <div class="page-number">
+                <p>Trang 3/10</p>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const SHEET_ID = '1Th2Zo2AjV77kv7bCUzaJTRllxy0mDEBfCcKFygnhiUM';
+        const SHEET_DETAIL = 'Báo cáo chi tiết';
+        const SHEET_IMAGES = 'Hình ảnh chi tiết';
+        // GID của sheet Báo cáo chi tiết (theo link bạn gửi)
+        const DETAIL_GID = '835415762';
+
+        const recordIdInput = document.getElementById('recordIdInput');
+        const loadBtn = document.getElementById('loadBtn');
+        const loadStatus = document.getElementById('loadStatus');
+        const imagesContainer = document.getElementById('imagesContainer');
+
+        function gvizUrl(sheetName, query) {
+            const base = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
+            const params = new URLSearchParams();
+            params.set('sheet', sheetName);
+            if (query) params.set('tq', query);
+            params.set('tqx', 'out:json');
+            return `${base}?${params.toString()}`;
+        }
+
+        function gvizUrlByGid(gid, query) {
+            const base = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
+            const params = new URLSearchParams();
+            params.set('gid', gid);
+            if (query) params.set('tq', query);
+            params.set('tqx', 'out:json');
+            return `${base}?${params.toString()}`;
+        }
+
+        async function fetchGviz(url) {
+            const res = await fetch(url, { cache: 'no-store' });
+            const text = await res.text();
+            const json = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            return json;
+        }
+
+        function idxToLetter(idx) {
+            let n = idx;
+            let s = '';
+            while (n >= 0) {
+                s = String.fromCharCode((n % 26) + 65) + s;
+                n = Math.floor(n / 26) - 1;
+            }
+            return s; // A, B, ..., Z, AA, AB, ...
+        }
+
+        function tableToObjects(gvizJson) {
+            const cols = (gvizJson.table.cols || []).map(c => (c.label || c.id || '').trim());
+            const rows = gvizJson.table.rows || [];
+            return rows.map(r => {
+                const obj = {};
+                (r.c || []).forEach((cell, idx) => {
+                    const rawVal = cell && (cell.v != null ? cell.v : (cell.f != null ? cell.f : ''));
+                    const label = cols[idx] || '';
+                    if (label) obj[label] = rawVal; // original header label when present
+                    obj[`col_${idx}`] = rawVal;     // positional key
+                    obj[idxToLetter(idx)] = rawVal; // column letter (A, B, C...)
+                });
+                return obj;
+            });
+        }
+
+        function setValue(id, value) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                el.value = value ?? '';
+            } else {
+                el.textContent = value ?? '';
+            }
+        }
+
+        function setChecked(id, value) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const normalized = String(value).toLowerCase().trim();
+            el.checked = ['1','true','x','yes','y','có'].includes(normalized);
+        }
+
+        function normalizeLabel(label) {
+            return String(label || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/\p{Diacritic}/gu, '')
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_|_$/g, '');
+        }
+
+        function formatDateLabel(ngayStr, gioStr) {
+            if (!ngayStr) return '';
+            // Hỗ trợ cả dd/mm/yyyy hoặc yyyy-mm-dd
+            const s = String(ngayStr).trim();
+            let d;
+            if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s)) {
+                const [dd, mm, yyyy] = s.split('/');
+                d = new Date(Number(yyyy.length === 2 ? '20' + yyyy : yyyy), Number(mm) - 1, Number(dd));
+            } else {
+                d = new Date(s);
+            }
+            if (isNaN(d.getTime())) return '';
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            const time = gioStr ? `, ${gioStr}` : '';
+            return `Ngày ${day} tháng ${month} năm ${year}${time}`;
+        }
+
+        function mapDetailRowToForm(row) {
+            const byKey = {};
+            Object.keys(row).forEach(k => { byKey[normalizeLabel(k)] = row[k]; });
+
+            // Common mappings (adjusts for various possible headers)
+            // Công trình -> Tên công trình
+            setValue('cong_trinh', byKey['cong_trinh'] || row['Công trình'] || row['D'] || byKey['ten_cong_trinh'] || byKey['hang_muc_cong_trinh'] || row['Tên công trình'] || row['Hạng mục công trình']);
+            setValue('dia_diem', byKey['dia_chi'] || row['E'] || byKey['dia_diem_xay_dung'] || row['Địa điểm xây dựng']);
+            setValue('chu_dau_tu', byKey['chu_dau_tu'] || row['Chủ đầu tư']);
+            setValue('chu_dau_tu_dien_thoai', byKey['chu_dau_tu_dien_thoai'] || byKey['sdt'] || row['F'] || row['Điện thoại Chủ đầu tư'] || row['SĐT']);
+            setValue('giam_sat_nha_thau', byKey['nha_thau_tu_van_giam_sat'] || row['Tư vấn giám sát']);
+            setValue('giam_sat_ho_ten', byKey['ho_va_ten_ky_su_giam_sat'] || row['G'] || row['Họ và tên kỹ sư giám sát'] || row['Người phụ trách']);
+            setValue('giam_sat_dien_thoai', byKey['dien_thoai_ky_su_giam_sat'] || row['Điện thoại kỹ sư giám sát']);
+            setValue('nha_thau_thi_cong', byKey['nha_thau_thi_cong'] || row['Nhà thầu thi công']);
+            setValue('chi_huy_truong', byKey['chi_huy_truong_cong_truong'] || row['Chỉ huy trưởng']);
+            setValue('chi_huy_dien_thoai', byKey['chi_huy_dien_thoai'] || row['Điện thoại Chỉ huy']);
+            setValue('nha_thau_thiet_ke', byKey['nha_thau_thiet_ke'] || row['Nhà thầu thiết kế']);
+            setValue('kien_truc_su_chu_tri', byKey['kien_truc_su_chu_tri'] || row['Kiến trúc sư chủ trì']);
+            setValue('ky_su_chu_tri', byKey['ky_su_chu_tri'] || row['Kỹ sư chủ trì']);
+            setValue('khoi_cong_hop_dong', byKey['khoi_cong_hop_dong_ngay'] || row['Khởi công HĐ']);
+            setValue('khoi_cong_thuc_te', byKey['khoi_cong_thuc_te'] || row['Khởi công thực tế']);
+            setValue('ban_giao_hop_dong', byKey['ban_giao_hop_dong_ngay'] || row['Bàn giao HĐ']);
+            setValue('ban_giao_thuc_te', byKey['ban_giao_thuc_te'] || row['Bàn giao thực tế']);
+
+            // Daily section
+            // Thời tiết dạng text -> parse sang 3 checkbox
+            const thoiTietText = (row['Thời tiết'] || row['I'] || byKey['thoi_tiet'] || '').toString().toLowerCase();
+            setChecked('binhthuong', byKey['thoi_tiet_binh_thuong'] || /binh|bình|bt|thuong/.test(thoiTietText));
+            setChecked('mua', byKey['thoi_tiet_mua'] || /mua|mưa/.test(thoiTietText));
+            setChecked('nang', byKey['thoi_tiet_nang'] || /nang|nắng/.test(thoiTietText));
+            setValue('sang', byKey['nhiet_do_sang'] || row['Nhiệt độ sáng']);
+            setValue('trua', byKey['nhiet_do_trua'] || row['Nhiệt độ trưa']);
+            setValue('chieu', byKey['nhiet_do_chieu'] || row['Nhiệt độ chiều']);
+            setValue('toi', byKey['nhiet_do_toi'] || row['Nhiệt độ tối']);
+
+            setValue('nhan_luc', byKey['nhan_luc'] || row['J'] || byKey['nhan_su_thi_cong'] || row['Nhân lực']);
+            setValue('thiet_bi', byKey['thiet_bi'] || row['K'] || row['Thiết bị']);
+            setValue('noi_dung_khoi_luong', byKey['noi_dung_khoi_luong'] || row['L'] || row['Nội dung CV'] || row['Nội dung khối lượng']);
+            setValue('nghiem_thu', byKey['nghiem_thu'] || row['Nghiệm thu']);
+            setValue('su_co', byKey['su_co'] || row['M'] || row['Sự cố']);
+            setValue('kien_nghi', byKey['kien_nghi'] || row['N'] || row['Kiến nghị']);
+            setValue('nhan_xet_ky_su', byKey['nhan_xet'] || row['O'] || byKey['nhan_xet_ky_su'] || row['Nhận xét'] || row['Nhận xét kỹ sư']);
+            setValue('chi_huy', byKey['chi_huy'] || row['Chỉ huy']);
+            setValue('phu_trach_thi_cong', byKey['nguoi_phu_trach'] || row['Người phụ trách']);
+
+            // Date labels
+            const labelText = formatDateLabel(row['Ngày'] || row['B'] || byKey['ngay'], row['Giờ'] || row['C'] || byKey['gio']);
+            if (labelText) {
+                setValue('cover_date_label', labelText);
+                setValue('daily_date_label', labelText);
+            }
+        }
+
+        function extractUrl(text) {
+            if (!text) return '';
+            const s = String(text);
+            const urlMatch = s.match(/https?:\/\/[^\s"')]+/i);
+            return urlMatch ? urlMatch[0] : '';
+        }
+
+        function normalizeDriveLink(url) {
+            if (!url) return '';
+            const viewId = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+            const idParam = url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+            const id = (viewId && viewId[1]) || (idParam && idParam[1]);
+            if (id) return `https://drive.google.com/uc?export=view&id=${id}`;
+            return url;
+        }
+
+        function renderImages(rows, idValue) {
+            imagesContainer.innerHTML = '';
+            const candidates = rows.filter(r => {
+                const map = {};
+                Object.keys(r).forEach(k => { map[normalizeLabel(k)] = r[k]; });
+                // Prefer column B (id báo cáo), fallback to named columns
+                const ridByB = r['B'];
+                const ridNamed = map['id_bao_cao'] || map['id_bao_cao_'] || map['bao_cao_id'];
+                const ridAny = map['id'] || map['ma'] || map['record_id'] || r['ID'] || r['Mã'] || r['Record ID'];
+                const rid = ridByB || ridNamed || ridAny;
+                return String(rid || '').trim().toLowerCase() === String(idValue).trim().toLowerCase();
+            });
+
+            if (candidates.length === 0) {
+                imagesContainer.innerHTML = '<div>Không có hình ảnh cho mã này.</div>';
+                return;
+            }
+
+            candidates.forEach(item => {
+                const map = {};
+                Object.keys(item).forEach(k => { map[normalizeLabel(k)] = item[k]; });
+                // URL may be in D (Hình ảnh) or E (Link ảnh), or embedded in text
+                let url = item['D'] || item['E'] || map['url'] || map['anh'] || map['image'] || map['hinh_anh'] || item['URL'] || item['Ảnh'] || item['Image'];
+                if (!/^https?:\/\//i.test(String(url))) {
+                    url = extractUrl(url);
+                }
+                url = normalizeDriveLink(url);
+                const desc = item['C'] || map['hang_muc'] || map['mo_ta'] || map['ghi_chu'] || item['Mô tả'] || item['Ghi chú'] || '';
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'image-item';
+
+                const ph = document.createElement('div');
+                ph.className = 'image-placeholder';
+                ph.style.cursor = 'default';
+                ph.style.border = 'none';
+                ph.style.padding = '0';
+                ph.style.backgroundColor = 'transparent';
+
+                if (url) {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+
+                            const img = document.createElement('img');
+                    img.src = url;
+                    img.referrerPolicy = 'no-referrer';
+                            img.style.width = '100%';
+                            img.style.height = '100%';
+                            img.style.objectFit = 'cover';
+
+                    img.onerror = () => {
+                        // Retry with Drive thumbnail if possible
+                        const m = url.match(/\/(?:d|open)\/([a-zA-Z0-9_-]{10,})|[?&]id=([a-zA-Z0-9_-]{10,})/);
+                        const id = (m && (m[1] || m[2])) || '';
+                        if (id) {
+                            img.src = `https://drive.google.com/thumbnail?id=${id}&sz=w1500`;
+                        }
+                    };
+
+                    a.appendChild(img);
+                    ph.appendChild(a);
+                } else {
+                    ph.textContent = 'Không có ảnh';
+                    ph.style.border = '2px dashed #ccc';
+                    ph.style.backgroundColor = '#f0f0f0';
+                    ph.style.height = '240px';
+                    ph.style.display = 'flex';
+                    ph.style.alignItems = 'center';
+                    ph.style.justifyContent = 'center';
+                    ph.style.color = '#999';
+                    ph.style.fontStyle = 'italic';
+                    ph.style.marginBottom = '10px';
+                }
+
+                const ta = document.createElement('textarea');
+                ta.value = desc;
+
+                wrapper.appendChild(ph);
+                wrapper.appendChild(ta);
+                imagesContainer.appendChild(wrapper);
+            });
+        }
+
+        async function loadData() {
+            const rid = recordIdInput.value.trim();
+            if (!rid) {
+                loadStatus.textContent = 'Nhập Mã bản ghi trước.';
+                return;
+            }
+            loadStatus.textContent = 'Đang tải...';
+            try {
+                // Detail sheet: try targeted query by column A (ID) using gid first
+                const q = `select * where lower(A) = '${rid.toLowerCase()}'`;
+                let detailJson = await fetchGviz(gvizUrlByGid(DETAIL_GID, q));
+                let detailRows = tableToObjects(detailJson);
+                let match = detailRows[0];
+
+                // Fallback: fetch all by sheet name then find by id
+                if (!match) {
+                    detailJson = await fetchGviz(gvizUrl(SHEET_DETAIL));
+                    detailRows = tableToObjects(detailJson);
+                    match = detailRows.find(r => {
+                        const map = {};
+                        Object.keys(r).forEach(k => { map[normalizeLabel(k)] = r[k]; });
+                        const idCandidate = map['id'] || map['ma'] || map['record_id'] || r['ID'] || r['Mã'] || r['Record ID'];
+                        return String(idCandidate).trim().toLowerCase() === rid.toLowerCase();
+                    });
+                }
+                if (!match) {
+                    // Try to help: show available IDs detected
+                    const sampleIds = detailRows
+                        .map(r => {
+                            const map = {};
+                            Object.keys(r).forEach(k => { map[normalizeLabel(k)] = r[k]; });
+                            return map['id'] || map['ma'] || map['record_id'] || r['ID'] || r['Mã'] || r['Record ID'];
+                        })
+                        .filter(Boolean)
+                        .slice(0, 5)
+                        .join(', ');
+                    loadStatus.textContent = sampleIds
+                        ? `Không tìm thấy bản ghi. Ví dụ ID: ${sampleIds}`
+                        : 'Không tìm thấy bản ghi.';
+                } else {
+                    mapDetailRowToForm(match);
+                    loadStatus.textContent = 'Đã nạp dữ liệu.';
+                }
+
+                // Images sheet
+                const imagesJson = await fetchGviz(gvizUrl(SHEET_IMAGES));
+                const imageRows = tableToObjects(imagesJson);
+                renderImages(imageRows, rid);
+            } catch (e) {
+                console.error(e);
+                loadStatus.textContent = 'Lỗi tải dữ liệu.';
+            }
+        }
+
+        loadBtn.addEventListener('click', loadData);
+    });
+</script>
+
+</body>
+</html>
