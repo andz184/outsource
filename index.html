@@ -240,11 +240,24 @@
 </head>
 <body>
 
-<div style="position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #eee; padding: 8px 12px; display: flex; gap: 8px; align-items: center;">
-    <label for="recordIdInput" style="white-space: nowrap; font-weight: bold;">Mã bản ghi:</label>
-    <input id="recordIdInput" type="text" placeholder="Nhập ID (ví dụ: NK-001)" style="max-width: 220px;">
-    <button id="loadBtn" type="button" style="padding: 6px 10px; cursor: pointer;">Tải dữ liệu</button>
-    <span id="loadStatus" style="margin-left: 8px; color: #666;"></span>
+<div style="position: sticky; top: 0; z-index: 2; background: #fff; border-bottom: 1px solid #eee; padding: 8px 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+    <div style="display:flex; gap:8px; align-items:center;">
+        <button id="prevBtn" type="button" title="Trước" style="padding: 6px 10px;">← Trước</button>
+        <button id="nextBtn" type="button" title="Sau" style="padding: 6px 10px;">Sau →</button>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <label for="recordIdInput" style="white-space: nowrap; font-weight: bold;">Mã:</label>
+        <input id="recordIdInput" type="text" placeholder="Nhập ID (ví dụ: NK-001)" style="max-width: 220px;">
+        <button id="loadBtn" type="button" style="padding: 6px 10px; cursor: pointer;">Tải</button>
+        <span id="indexBadge" style="font-size:12px; color:#555;">(0/0)</span>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; margin-left: auto;">
+        <button id="editBtn" type="button" style="padding: 6px 10px;">Sửa</button>
+        <button id="saveBtn" type="button" style="padding: 6px 10px; display:none;">Lưu</button>
+        <button id="cancelBtn" type="button" style="padding: 6px 10px; display:none;">Hủy</button>
+        <button id="deleteBtn" type="button" style="padding: 6px 10px;">Xóa</button>
+        <span id="loadStatus" style="margin-left: 8px; color: #666;"></span>
+    </div>
 </div>
 
 <div class="container page-2">
@@ -507,6 +520,50 @@
         const loadBtn = document.getElementById('loadBtn');
         const loadStatus = document.getElementById('loadStatus');
         const imagesContainer = document.getElementById('imagesContainer');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const indexBadge = document.getElementById('indexBadge');
+        const editBtn = document.getElementById('editBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+
+        let allDetails = [];
+        let allImages = [];
+        let idList = [];
+        let currentIndex = -1;
+        let isEditing = false;
+
+        // Local fallback storage (không cần endpoint)
+        const LS_KEY = 'nkct_changes_v1';
+        function readLocalChanges() {
+            try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; }
+        }
+        function writeLocalChanges(changes) {
+            localStorage.setItem(LS_KEY, JSON.stringify(changes));
+        }
+        function upsertLocalChange(record) {
+            const arr = readLocalChanges();
+            const idx = arr.findIndex(x => String(x.id).toLowerCase() === String(record.id).toLowerCase());
+            if (idx >= 0) arr[idx] = record; else arr.push(record);
+            writeLocalChanges(arr);
+        }
+        function removeLocalChange(id) {
+            const arr = readLocalChanges().filter(x => String(x.id).toLowerCase() !== String(id).toLowerCase());
+            writeLocalChanges(arr);
+        }
+        function applyLocalChangeIfAny(id) {
+            const arr = readLocalChanges();
+            const hit = arr.find(x => String(x.id).toLowerCase() === String(id).toLowerCase());
+            if (hit) {
+                // ghi đè form bởi local change
+                Object.keys(hit).forEach(k => {
+                    if (k === 'id') return;
+                    const el = document.getElementById(k);
+                    if (el) el.value = hit[k];
+                });
+            }
+        }
 
         function gvizUrl(sheetName, query) {
             const base = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
@@ -782,6 +839,622 @@
                         return String(idCandidate).trim().toLowerCase() === rid.toLowerCase();
                     });
                 }
+                allDetails = detailRows;
+                if (!match) {
+                    // Try to help: show available IDs detected
+                    const sampleIds = detailRows
+                        .map(r => {
+                            const map = {};
+                            Object.keys(r).forEach(k => { map[normalizeLabel(k)] = r[k]; });
+                            return map['id'] || map['ma'] || map['record_id'] || r['ID'] || r['Mã'] || r['Record ID'];
+                        })
+                        .filter(Boolean)
+                        .slice(0, 5)
+                        .join(', ');
+                    loadStatus.textContent = sampleIds
+                        ? `Không tìm thấy bản ghi. Ví dụ ID: ${sampleIds}`
+                        : 'Không tìm thấy bản ghi.';
+                } else {
+                    mapDetailRowToForm(match);
+                    applyLocalChangeIfAny(rid);
+                    loadStatus.textContent = 'Đã nạp dữ liệu.';
+                }
+
+                // Images sheet
+                const imagesJson = await fetchGviz(gvizUrl(SHEET_IMAGES));
+                allImages = tableToObjects(imagesJson);
+                renderImages(allImages, rid);
+            } catch (e) {
+                console.error(e);
+                loadStatus.textContent = 'Lỗi tải dữ liệu.';
+            }
+        }
+
+        loadBtn.addEventListener('click', loadData);
+
+        function collectIds() {
+            // Tạo danh sách ID duy nhất theo cột A (id) khi có, ưu tiên các ô có màu (gviz không trả màu trực tiếp, nên ta lấy tất cả)
+            const ids = new Set();
+            allDetails.forEach(r => {
+                const map = {};
+                Object.keys(r).forEach(k => { map[normalizeLabel(k)] = r[k]; });
+                const idCandidate = r['A'] || map['id'] || map['ma'] || map['record_id'] || r['ID'] || r['Mã'] || r['Record ID'];
+                if (idCandidate) ids.add(String(idCandidate).trim());
+            });
+            idList = Array.from(ids);
+        }
+
+        function updateIndexBadge() {
+            indexBadge.textContent = idList.length ? `(${currentIndex + 1}/${idList.length})` : '(0/0)';
+        }
+
+        async function loadAllAndFirst() {
+            loadStatus.textContent = 'Đang tải danh sách...';
+            try {
+                const detailAll = await fetchGviz(gvizUrl(SHEET_DETAIL));
+                allDetails = tableToObjects(detailAll);
+                const imagesAll = await fetchGviz(gvizUrl(SHEET_IMAGES));
+                allImages = tableToObjects(imagesAll);
+                collectIds();
+                if (idList.length) {
+                    currentIndex = 0;
+                    recordIdInput.value = idList[0];
+                    mapDetailRowToForm(allDetails.find(r => (r['A'] || r['ID']) == idList[0]) || {});
+                    applyLocalChangeIfAny(idList[0]);
+                    renderImages(allImages, idList[0]);
+                }
+                updateIndexBadge();
+                loadStatus.textContent = '';
+            } catch (e) {
+                console.error(e);
+                loadStatus.textContent = 'Lỗi tải danh sách.';
+            }
+        }
+
+        prevBtn.addEventListener('click', () => {
+            if (!idList.length) return;
+            currentIndex = (currentIndex - 1 + idList.length) % idList.length;
+            const id = idList[currentIndex];
+            recordIdInput.value = id;
+            const match = allDetails.find(r => String(r['A'] || r['ID'] || '').trim().toLowerCase() === id.toLowerCase());
+            if (match) mapDetailRowToForm(match);
+            applyLocalChangeIfAny(id);
+            renderImages(allImages, id);
+            updateIndexBadge();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (!idList.length) return;
+            currentIndex = (currentIndex + 1) % idList.length;
+            const id = idList[currentIndex];
+            recordIdInput.value = id;
+            const match = allDetails.find(r => String(r['A'] || r['ID'] || '').trim().toLowerCase() === id.toLowerCase());
+            if (match) mapDetailRowToForm(match);
+            renderImages(allImages, id);
+            updateIndexBadge();
+        });
+
+        function setEditable(enabled) {
+            isEditing = enabled;
+            const inputs = document.querySelectorAll('input[type="text"], textarea');
+            inputs.forEach(el => el.disabled = !enabled);
+            editBtn.style.display = enabled ? 'none' : '';
+            saveBtn.style.display = enabled ? '' : 'none';
+            cancelBtn.style.display = enabled ? '' : 'none';
+        }
+
+        editBtn.addEventListener('click', () => setEditable(true));
+        cancelBtn.addEventListener('click', () => setEditable(false));
+
+        function collectFormData() {
+            return {
+                id: recordIdInput.value.trim(),
+                cong_trinh: document.getElementById('cong_trinh').value,
+                dia_diem: document.getElementById('dia_diem').value,
+                chu_dau_tu: document.getElementById('chu_dau_tu').value,
+                chu_dau_tu_dien_thoai: document.getElementById('chu_dau_tu_dien_thoai').value,
+                giam_sat_nha_thau: document.getElementById('giam_sat_nha_thau').value,
+                giam_sat_ho_ten: document.getElementById('giam_sat_ho_ten').value,
+                giam_sat_dien_thoai: document.getElementById('giam_sat_dien_thoai').value,
+                nha_thau_thi_cong: document.getElementById('nha_thau_thi_cong').value,
+                chi_huy_truong: document.getElementById('chi_huy_truong').value,
+                chi_huy_dien_thoai: document.getElementById('chi_huy_dien_thoai').value,
+                nha_thau_thiet_ke: document.getElementById('nha_thau_thiet_ke').value,
+                kien_truc_su_chu_tri: document.getElementById('kien_truc_su_chu_tri').value,
+                ky_su_chu_tri: document.getElementById('ky_su_chu_tri').value,
+                khoi_cong_hop_dong: document.getElementById('khoi_cong_hop_dong').value,
+                khoi_cong_thuc_te: document.getElementById('khoi_cong_thuc_te').value,
+                ban_giao_hop_dong: document.getElementById('ban_giao_hop_dong').value,
+                ban_giao_thuc_te: document.getElementById('ban_giao_thuc_te').value,
+                nhan_luc: document.getElementById('nhan_luc').value,
+                thiet_bi: document.getElementById('thiet_bi').value,
+                noi_dung_khoi_luong: document.getElementById('noi_dung_khoi_luong').value,
+                nghiem_thu: document.getElementById('nghiem_thu').value,
+                su_co: document.getElementById('su_co').value,
+                kien_nghi: document.getElementById('kien_nghi').value,
+                nhan_xet_ky_su: document.getElementById('nhan_xet_ky_su').value,
+                chi_huy: document.getElementById('chi_huy').value,
+            };
+        }
+
+        // Endpoint Vercel: /api/report
+        const SAVE_ENDPOINT = '/api/report';
+        const DELETE_ENDPOINT = '/api/report';
+
+        saveBtn.addEventListener('click', async () => {
+            const payload = collectFormData();
+            if (!SAVE_ENDPOINT || SAVE_ENDPOINT.includes('REPLACE_WITH_YOUR_DEPLOYMENT_ID')) {
+                // Fallback: lưu tạm localStorage
+                upsertLocalChange(payload);
+                loadStatus.textContent = 'Đã lưu tạm trên trình duyệt (chưa ghi vào Sheet).';
+                setEditable(false);
+                return;
+            }
+            loadStatus.textContent = 'Đang lưu...';
+            try {
+                const body = { action: 'update', sheetId: SHEET_ID, sheetName: SHEET_DETAIL, data: payload };
+                const res = await fetch(SAVE_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), mode: 'cors' });
+                if (!res.ok) throw new Error('Save failed');
+                loadStatus.textContent = 'Đã lưu.';
+                setEditable(false);
+            } catch (e) {
+                console.error(e);
+                loadStatus.textContent = 'Lỗi lưu.';
+            }
+        });
+
+        deleteBtn.addEventListener('click', async () => {
+            const id = recordIdInput.value.trim();
+            if (!id) return;
+            if (!confirm('Xóa bản ghi này?')) return;
+            if (!DELETE_ENDPOINT || DELETE_ENDPOINT.includes('REPLACE_WITH_YOUR_DEPLOYMENT_ID')) {
+                removeLocalChange(id);
+                loadStatus.textContent = 'Đã xóa bản lưu tạm trên trình duyệt.';
+                return;
+            }
+            loadStatus.textContent = 'Đang xóa...';
+            try {
+                const body = { action: 'delete', sheetId: SHEET_ID, sheetName: SHEET_DETAIL, id };
+                const res = await fetch(DELETE_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), mode: 'cors' });
+                if (!res.ok) throw new Error('Delete failed');
+                loadStatus.textContent = 'Đã xóa.';
+            } catch (e) {
+                console.error(e);
+                loadStatus.textContent = 'Lỗi xóa.';
+            }
+        });
+
+        // Khởi động: tải tất cả để có thể prev/next
+        loadAllAndFirst();
+    });
+</script>
+
+</body>
+</html>
+
+                    <div>
+
+                        <input type="checkbox" id="nang" name="weather" value="nang">
+
+                        <label for="nang">Nắng</label>
+
+                    </div>
+
+                </div>
+
+                <div class="weather-section temp-inputs">
+
+                     <label>Nhiệt độ:</label>
+
+                     <label for="sang">Sáng</label>
+
+                     <input type="text" id="sang" name="temp_sang" size="5" style="border-bottom: 1px dotted #000;">
+
+                     <label for="trua">Trưa</label>
+
+                     <input type="text" id="trua" name="temp_trua" size="5" style="border-bottom: 1px dotted #000;">
+
+                     <label for="chieu">Chiều</label>
+
+                     <input type="text" id="chieu" name="temp_chieu" size="5" style="border-bottom: 1px dotted #000;">
+
+                     <label for="toi">Tối</label>
+
+                     <input type="text" id="toi" name="temp_toi" size="5" style="border-bottom: 1px dotted #000;">
+
+                </div>
+
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label class="main-label">2. Tình hình nhân lực, thiết bị thi công:</label>
+
+                <div>
+
+                    <label class="sub-label" for="nhanluc">2.1. Nhân lực:</label>
+
+                    <textarea id="nhan_luc" name="nhanluc"></textarea>
+                </div>
+
+                <div>
+
+                    <label class="sub-label" for="thietbi">2.2. Thiết bị:</label>
+
+                    <textarea id="thiet_bi" name="thietbi"></textarea>
+                </div>
+
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label class="main-label">3. Tình hình thi công:</label>
+
+                <div>
+
+                    <label class="sub-label" for="noidung_khoiluong">3.1. Nội dung, khối lượng công việc và tiến độ thực hiện:</label>
+
+                    <textarea id="noi_dung_khoi_luong" name="noidung_khoiluong"></textarea>
+                </div>
+
+                <div>
+
+                    <label class="sub-label" for="nghiemthu">3.2. Nghiệm thu công việc xây dựng hàng ngày:</label>
+
+                    <textarea id="nghiem_thu" name="nghiemthu"></textarea>
+                </div>
+
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label class="main-label" for="suco">4. Mô tả chi tiết các sự cố, hư hỏng và các vấn đề phát sinh khác trong quá trình thi công xây dựng công trình:</label>
+
+                <textarea id="su_co" name="suco"></textarea>
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label class="main-label" for="kiennghi">5. Các kiến nghị và những ý kiến chỉ đạo giải quyết các vấn đề phát sinh của các bên có liên quan (Chủ đầu tư, Người giám sát thi công, Người giám sát tác giả)</label>
+
+                <textarea id="kien_nghi" name="kiennghi"></textarea>
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label class="main-label" for="nhanxet_kysu">6. Nhận xét của kỹ sư giám sát thi công xây dựng về tình hình và chất lượng công việc xây dựng (ghi rõ họ và tên, chức vụ và chữ ký)</label>
+
+                <textarea id="nhan_xet_ky_su" name="nhanxet_kysu"></textarea>
+            </div>
+
+
+
+            <div class="form-group">
+
+                <label class="main-label" for="chihuy">7. Chỉ huy trưởng công trường tiếp thu các kiến nghị và nhận xét (họ tên, chữ ký)</label>
+
+                <textarea id="chi_huy" name="chihuy"></textarea>
+            </div>
+
+            
+
+             <div class="page-number">
+
+                <p>Trang 3/10</p>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+
+<script>
+
+    document.addEventListener('DOMContentLoaded', function() {
+
+        const SHEET_ID = '1Th2Zo2AjV77kv7bCUzaJTRllxy0mDEBfCcKFygnhiUM';
+        const SHEET_DETAIL = 'Báo cáo chi tiết';
+        const SHEET_IMAGES = 'Hình ảnh chi tiết';
+        // GID của sheet Báo cáo chi tiết (theo link bạn gửi)
+        const DETAIL_GID = '835415762';
+
+        const recordIdInput = document.getElementById('recordIdInput');
+        const loadBtn = document.getElementById('loadBtn');
+        const loadStatus = document.getElementById('loadStatus');
+        const imagesContainer = document.getElementById('imagesContainer');
+
+        function gvizUrl(sheetName, query) {
+            const base = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
+            const params = new URLSearchParams();
+            params.set('sheet', sheetName);
+            if (query) params.set('tq', query);
+            params.set('tqx', 'out:json');
+            return `${base}?${params.toString()}`;
+        }
+
+        function gvizUrlByGid(gid, query) {
+            const base = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq`;
+            const params = new URLSearchParams();
+            params.set('gid', gid);
+            if (query) params.set('tq', query);
+            params.set('tqx', 'out:json');
+            return `${base}?${params.toString()}`;
+        }
+
+        async function fetchGviz(url) {
+            const res = await fetch(url, { cache: 'no-store' });
+            const text = await res.text();
+            const json = JSON.parse(text.substring(text.indexOf('{'), text.lastIndexOf('}') + 1));
+            return json;
+        }
+
+        function idxToLetter(idx) {
+            let n = idx;
+            let s = '';
+            while (n >= 0) {
+                s = String.fromCharCode((n % 26) + 65) + s;
+                n = Math.floor(n / 26) - 1;
+            }
+            return s; // A, B, ..., Z, AA, AB, ...
+        }
+
+        function tableToObjects(gvizJson) {
+            const cols = (gvizJson.table.cols || []).map(c => (c.label || c.id || '').trim());
+            const rows = gvizJson.table.rows || [];
+            return rows.map(r => {
+                const obj = {};
+                (r.c || []).forEach((cell, idx) => {
+                    const rawVal = cell && (cell.v != null ? cell.v : (cell.f != null ? cell.f : ''));
+                    const label = cols[idx] || '';
+                    if (label) obj[label] = rawVal; // original header label when present
+                    obj[`col_${idx}`] = rawVal;     // positional key
+                    obj[idxToLetter(idx)] = rawVal; // column letter (A, B, C...)
+                });
+                return obj;
+            });
+        }
+
+        function setValue(id, value) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                el.value = value ?? '';
+            } else {
+                el.textContent = value ?? '';
+            }
+        }
+
+        function setChecked(id, value) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const normalized = String(value).toLowerCase().trim();
+            el.checked = ['1','true','x','yes','y','có'].includes(normalized);
+        }
+
+        function normalizeLabel(label) {
+            return String(label || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/\p{Diacritic}/gu, '')
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_|_$/g, '');
+        }
+
+        function formatDateLabel(ngayStr, gioStr) {
+            if (!ngayStr) return '';
+            // Hỗ trợ cả dd/mm/yyyy hoặc yyyy-mm-dd
+            const s = String(ngayStr).trim();
+            let d;
+            if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(s)) {
+                const [dd, mm, yyyy] = s.split('/');
+                d = new Date(Number(yyyy.length === 2 ? '20' + yyyy : yyyy), Number(mm) - 1, Number(dd));
+            } else {
+                d = new Date(s);
+            }
+            if (isNaN(d.getTime())) return '';
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year = d.getFullYear();
+            const time = gioStr ? `, ${gioStr}` : '';
+            return `Ngày ${day} tháng ${month} năm ${year}${time}`;
+        }
+
+        function mapDetailRowToForm(row) {
+            const byKey = {};
+            Object.keys(row).forEach(k => { byKey[normalizeLabel(k)] = row[k]; });
+
+            // Common mappings (adjusts for various possible headers)
+            // Công trình -> Tên công trình
+            setValue('cong_trinh', byKey['cong_trinh'] || row['Công trình'] || row['D'] || byKey['ten_cong_trinh'] || byKey['hang_muc_cong_trinh'] || row['Tên công trình'] || row['Hạng mục công trình']);
+            setValue('dia_diem', byKey['dia_chi'] || row['E'] || byKey['dia_diem_xay_dung'] || row['Địa điểm xây dựng']);
+            setValue('chu_dau_tu', byKey['chu_dau_tu'] || row['Chủ đầu tư']);
+            setValue('chu_dau_tu_dien_thoai', byKey['chu_dau_tu_dien_thoai'] || byKey['sdt'] || row['F'] || row['Điện thoại Chủ đầu tư'] || row['SĐT']);
+            setValue('giam_sat_nha_thau', byKey['nha_thau_tu_van_giam_sat'] || row['Tư vấn giám sát']);
+            setValue('giam_sat_ho_ten', byKey['ho_va_ten_ky_su_giam_sat'] || row['G'] || row['Họ và tên kỹ sư giám sát'] || row['Người phụ trách']);
+            setValue('giam_sat_dien_thoai', byKey['dien_thoai_ky_su_giam_sat'] || row['Điện thoại kỹ sư giám sát']);
+            setValue('nha_thau_thi_cong', byKey['nha_thau_thi_cong'] || row['Nhà thầu thi công']);
+            setValue('chi_huy_truong', byKey['chi_huy_truong_cong_truong'] || row['Chỉ huy trưởng']);
+            setValue('chi_huy_dien_thoai', byKey['chi_huy_dien_thoai'] || row['Điện thoại Chỉ huy']);
+            setValue('nha_thau_thiet_ke', byKey['nha_thau_thiet_ke'] || row['Nhà thầu thiết kế']);
+            setValue('kien_truc_su_chu_tri', byKey['kien_truc_su_chu_tri'] || row['Kiến trúc sư chủ trì']);
+            setValue('ky_su_chu_tri', byKey['ky_su_chu_tri'] || row['Kỹ sư chủ trì']);
+            setValue('khoi_cong_hop_dong', byKey['khoi_cong_hop_dong_ngay'] || row['Khởi công HĐ']);
+            setValue('khoi_cong_thuc_te', byKey['khoi_cong_thuc_te'] || row['Khởi công thực tế']);
+            setValue('ban_giao_hop_dong', byKey['ban_giao_hop_dong_ngay'] || row['Bàn giao HĐ']);
+            setValue('ban_giao_thuc_te', byKey['ban_giao_thuc_te'] || row['Bàn giao thực tế']);
+
+            // Daily section
+            // Thời tiết dạng text -> parse sang 3 checkbox
+            const thoiTietText = (row['Thời tiết'] || row['I'] || byKey['thoi_tiet'] || '').toString().toLowerCase();
+            setChecked('binhthuong', byKey['thoi_tiet_binh_thuong'] || /binh|bình|bt|thuong/.test(thoiTietText));
+            setChecked('mua', byKey['thoi_tiet_mua'] || /mua|mưa/.test(thoiTietText));
+            setChecked('nang', byKey['thoi_tiet_nang'] || /nang|nắng/.test(thoiTietText));
+            setValue('sang', byKey['nhiet_do_sang'] || row['Nhiệt độ sáng']);
+            setValue('trua', byKey['nhiet_do_trua'] || row['Nhiệt độ trưa']);
+            setValue('chieu', byKey['nhiet_do_chieu'] || row['Nhiệt độ chiều']);
+            setValue('toi', byKey['nhiet_do_toi'] || row['Nhiệt độ tối']);
+
+            setValue('nhan_luc', byKey['nhan_luc'] || row['J'] || byKey['nhan_su_thi_cong'] || row['Nhân lực']);
+            setValue('thiet_bi', byKey['thiet_bi'] || row['K'] || row['Thiết bị']);
+            setValue('noi_dung_khoi_luong', byKey['noi_dung_khoi_luong'] || row['L'] || row['Nội dung CV'] || row['Nội dung khối lượng']);
+            setValue('nghiem_thu', byKey['nghiem_thu'] || row['Nghiệm thu']);
+            setValue('su_co', byKey['su_co'] || row['M'] || row['Sự cố']);
+            setValue('kien_nghi', byKey['kien_nghi'] || row['N'] || row['Kiến nghị']);
+            setValue('nhan_xet_ky_su', byKey['nhan_xet'] || row['O'] || byKey['nhan_xet_ky_su'] || row['Nhận xét'] || row['Nhận xét kỹ sư']);
+            setValue('chi_huy', byKey['chi_huy'] || row['Chỉ huy']);
+            setValue('phu_trach_thi_cong', byKey['nguoi_phu_trach'] || row['Người phụ trách']);
+
+            // Date labels
+            const labelText = formatDateLabel(row['Ngày'] || row['B'] || byKey['ngay'], row['Giờ'] || row['C'] || byKey['gio']);
+            if (labelText) {
+                setValue('cover_date_label', labelText);
+                setValue('daily_date_label', labelText);
+            }
+        }
+
+        function extractUrl(text) {
+            if (!text) return '';
+            const s = String(text);
+            const urlMatch = s.match(/https?:\/\/[^\s"')]+/i);
+            return urlMatch ? urlMatch[0] : '';
+        }
+
+        function normalizeDriveLink(url) {
+            if (!url) return '';
+            const viewId = url.match(/\/d\/([a-zA-Z0-9_-]{10,})/);
+            const idParam = url.match(/[?&]id=([a-zA-Z0-9_-]{10,})/);
+            const id = (viewId && viewId[1]) || (idParam && idParam[1]);
+            if (id) return `https://drive.google.com/uc?export=view&id=${id}`;
+            return url;
+        }
+
+        function renderImages(rows, idValue) {
+            imagesContainer.innerHTML = '';
+            const candidates = rows.filter(r => {
+                const map = {};
+                Object.keys(r).forEach(k => { map[normalizeLabel(k)] = r[k]; });
+                // Prefer column B (id báo cáo), fallback to named columns
+                const ridByB = r['B'];
+                const ridNamed = map['id_bao_cao'] || map['id_bao_cao_'] || map['bao_cao_id'];
+                const ridAny = map['id'] || map['ma'] || map['record_id'] || r['ID'] || r['Mã'] || r['Record ID'];
+                const rid = ridByB || ridNamed || ridAny;
+                return String(rid || '').trim().toLowerCase() === String(idValue).trim().toLowerCase();
+            });
+
+            if (candidates.length === 0) {
+                imagesContainer.innerHTML = '<div>Không có hình ảnh cho mã này.</div>';
+                return;
+            }
+
+            candidates.forEach(item => {
+                const map = {};
+                Object.keys(item).forEach(k => { map[normalizeLabel(k)] = item[k]; });
+                // URL may be in D (Hình ảnh) or E (Link ảnh), or embedded in text
+                let url = item['D'] || item['E'] || map['url'] || map['anh'] || map['image'] || map['hinh_anh'] || item['URL'] || item['Ảnh'] || item['Image'];
+                if (!/^https?:\/\//i.test(String(url))) {
+                    url = extractUrl(url);
+                }
+                url = normalizeDriveLink(url);
+                const desc = item['C'] || map['hang_muc'] || map['mo_ta'] || map['ghi_chu'] || item['Mô tả'] || item['Ghi chú'] || '';
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'image-item';
+
+                const ph = document.createElement('div');
+                ph.className = 'image-placeholder';
+                ph.style.cursor = 'default';
+                ph.style.border = 'none';
+                ph.style.padding = '0';
+                ph.style.backgroundColor = 'transparent';
+
+                if (url) {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.target = '_blank';
+
+                            const img = document.createElement('img');
+
+                    img.src = url;
+                    img.referrerPolicy = 'no-referrer';
+                            img.style.width = '100%';
+
+                            img.style.height = '100%';
+
+                            img.style.objectFit = 'cover';
+
+
+                    img.onerror = () => {
+                        // Retry with Drive thumbnail if possible
+                        const m = url.match(/\/(?:d|open)\/([a-zA-Z0-9_-]{10,})|[?&]id=([a-zA-Z0-9_-]{10,})/);
+                        const id = (m && (m[1] || m[2])) || '';
+                        if (id) {
+                            img.src = `https://drive.google.com/thumbnail?id=${id}&sz=w1500`;
+                        }
+                    };
+
+                    a.appendChild(img);
+                    ph.appendChild(a);
+                } else {
+                    ph.textContent = 'Không có ảnh';
+                    ph.style.border = '2px dashed #ccc';
+                    ph.style.backgroundColor = '#f0f0f0';
+                    ph.style.height = '240px';
+                    ph.style.display = 'flex';
+                    ph.style.alignItems = 'center';
+                    ph.style.justifyContent = 'center';
+                    ph.style.color = '#999';
+                    ph.style.fontStyle = 'italic';
+                    ph.style.marginBottom = '10px';
+                }
+
+                const ta = document.createElement('textarea');
+                ta.value = desc;
+
+                wrapper.appendChild(ph);
+                wrapper.appendChild(ta);
+                imagesContainer.appendChild(wrapper);
+            });
+        }
+
+        async function loadData() {
+            const rid = recordIdInput.value.trim();
+            if (!rid) {
+                loadStatus.textContent = 'Nhập Mã bản ghi trước.';
+                return;
+            }
+            loadStatus.textContent = 'Đang tải...';
+            try {
+                // Detail sheet: try targeted query by column A (ID) using gid first
+                const q = `select * where lower(A) = '${rid.toLowerCase()}'`;
+                let detailJson = await fetchGviz(gvizUrlByGid(DETAIL_GID, q));
+                let detailRows = tableToObjects(detailJson);
+                let match = detailRows[0];
+
+                // Fallback: fetch all by sheet name then find by id
+                if (!match) {
+                    detailJson = await fetchGviz(gvizUrl(SHEET_DETAIL));
+                    detailRows = tableToObjects(detailJson);
+                    match = detailRows.find(r => {
+                        const map = {};
+                        Object.keys(r).forEach(k => { map[normalizeLabel(k)] = r[k]; });
+                        const idCandidate = map['id'] || map['ma'] || map['record_id'] || r['ID'] || r['Mã'] || r['Record ID'];
+                        return String(idCandidate).trim().toLowerCase() === rid.toLowerCase();
+                    });
+                }
                 if (!match) {
                     // Try to help: show available IDs detected
                     const sampleIds = detailRows
@@ -813,7 +1486,11 @@
 
         loadBtn.addEventListener('click', loadData);
     });
+
 </script>
 
+
+
 </body>
+
 </html>
