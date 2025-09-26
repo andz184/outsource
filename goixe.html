@@ -430,6 +430,31 @@
                     loadAssignments(),
                     loadCustomers()
                 ]);
+                
+                // Load local changes và merge vào data
+                const localVehicles = readLocalVehicles();
+                const localAssignments = readLocalAssignments();
+                
+                // Merge local vehicles
+                localVehicles.forEach(localVehicle => {
+                    const existingIndex = vehicles.findIndex(v => String(v.ID).toLowerCase() === String(localVehicle.ID).toLowerCase());
+                    if (existingIndex >= 0) {
+                        vehicles[existingIndex] = localVehicle;
+                    } else {
+                        vehicles.push(localVehicle);
+                    }
+                });
+                
+                // Merge local assignments
+                localAssignments.forEach(localAssignment => {
+                    const existingIndex = assignments.findIndex(a => String(a.ID).toLowerCase() === String(localAssignment.ID).toLowerCase());
+                    if (existingIndex >= 0) {
+                        assignments[existingIndex] = localAssignment;
+                    } else {
+                        assignments.push(localAssignment);
+                    }
+                });
+                
                 renderAllTables();
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -726,6 +751,35 @@
             });
         }
 
+        // Local storage fallback (giống index.html)
+        const LS_KEY_VEHICLES = 'goixe_vehicles_v1';
+        const LS_KEY_ASSIGNMENTS = 'goixe_assignments_v1';
+        
+        function readLocalVehicles() {
+            try { return JSON.parse(localStorage.getItem(LS_KEY_VEHICLES) || '[]'); } catch { return []; }
+        }
+        function writeLocalVehicles(data) {
+            localStorage.setItem(LS_KEY_VEHICLES, JSON.stringify(data));
+        }
+        function readLocalAssignments() {
+            try { return JSON.parse(localStorage.getItem(LS_KEY_ASSIGNMENTS) || '[]'); } catch { return []; }
+        }
+        function writeLocalAssignments(data) {
+            localStorage.setItem(LS_KEY_ASSIGNMENTS, JSON.stringify(data));
+        }
+        
+        function upsertLocalVehicle(vehicle) {
+            const arr = readLocalVehicles();
+            const idx = arr.findIndex(x => String(x.ID).toLowerCase() === String(vehicle.ID).toLowerCase());
+            if (idx >= 0) arr[idx] = vehicle; else arr.push(vehicle);
+            writeLocalVehicles(arr);
+        }
+        
+        function removeLocalVehicle(id) {
+            const arr = readLocalVehicles().filter(x => String(x.ID).toLowerCase() !== String(id).toLowerCase());
+            writeLocalVehicles(arr);
+        }
+
         async function saveVehicle(event) {
             event.preventDefault();
             
@@ -740,8 +794,18 @@
                 'GhiChu': document.getElementById('vehicleNote')?.value || ''
             };
             
+            // Cập nhật local data trước
+            if (currentVehicleId) {
+                const index = vehicles.findIndex(v => v.ID === currentVehicleId);
+                if (index !== -1) {
+                    vehicles[index] = vehicleData;
+                }
+            } else {
+                vehicles.push(vehicleData);
+            }
+            
             try {
-                // Gửi lên API để lưu vào Google Sheet
+                // Thử gửi lên API để lưu vào Google Sheet
                 const response = await fetch('/api/report', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -757,24 +821,27 @@
                     throw new Error('Lỗi lưu vào sheet');
                 }
                 
-                // Cập nhật local data
-                if (currentVehicleId) {
-                    const index = vehicles.findIndex(v => v.ID === currentVehicleId);
-                    if (index !== -1) {
-                        vehicles[index] = vehicleData;
-                    }
-                } else {
-                    vehicles.push(vehicleData);
-                }
-                
+                // Thành công: lưu vào localStorage làm backup
+                upsertLocalVehicle(vehicleData);
                 renderVehicleTable();
                 closeVehicleModal();
                 alert('Đã lưu xe vào Google Sheet thành công!');
                 
             } catch (error) {
                 console.error('Error saving vehicle:', error);
-                alert('Lỗi lưu xe: ' + error.message);
+                // Fallback: chỉ lưu local
+                upsertLocalVehicle(vehicleData);
+                renderVehicleTable();
+                closeVehicleModal();
+                alert('Đã lưu xe tạm trên trình duyệt (chưa ghi vào Sheet). Lỗi: ' + error.message);
             }
+        }
+
+        function upsertLocalAssignment(assignment) {
+            const arr = readLocalAssignments();
+            const idx = arr.findIndex(x => String(x.ID).toLowerCase() === String(assignment.ID).toLowerCase());
+            if (idx >= 0) arr[idx] = assignment; else arr.push(assignment);
+            writeLocalAssignments(arr);
         }
 
         async function saveAssignment(event) {
@@ -789,8 +856,11 @@
                 'Ghi chú': document.getElementById('assignmentNote').value
             };
             
+            // Cập nhật local data trước
+            assignments.push(assignmentData);
+            
             try {
-                // Gửi lên API để lưu vào Google Sheet
+                // Thử gửi lên API để lưu vào Google Sheet
                 const response = await fetch('/api/report', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -806,8 +876,8 @@
                     throw new Error('Lỗi lưu phân phối vào sheet');
                 }
                 
-                // Cập nhật local data
-                assignments.push(assignmentData);
+                // Thành công: lưu vào localStorage làm backup
+                upsertLocalAssignment(assignmentData);
                 renderAssignmentTable();
                 loadUnassignedOrders();
                 closeAssignmentModal();
@@ -815,7 +885,12 @@
                 
             } catch (error) {
                 console.error('Error saving assignment:', error);
-                alert('Lỗi lưu phân phối: ' + error.message);
+                // Fallback: chỉ lưu local
+                upsertLocalAssignment(assignmentData);
+                renderAssignmentTable();
+                loadUnassignedOrders();
+                closeAssignmentModal();
+                alert('Đã phân phối đơn hàng tạm trên trình duyệt (chưa ghi vào Sheet). Lỗi: ' + error.message);
             }
         }
 
@@ -825,8 +900,12 @@
 
         async function deleteVehicle(vehicleId) {
             if (confirm('Bạn có chắc muốn xóa xe này?')) {
+                // Cập nhật local data trước
+                vehicles = vehicles.filter(v => v.ID !== vehicleId);
+                assignments = assignments.filter(a => a['Xe'] !== vehicleId);
+                
                 try {
-                    // Gửi lên API để xóa khỏi Google Sheet
+                    // Thử gửi lên API để xóa khỏi Google Sheet
                     const response = await fetch('/api/report', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -842,15 +921,17 @@
                         throw new Error('Lỗi xóa khỏi sheet');
                     }
                     
-                    // Cập nhật local data
-                    vehicles = vehicles.filter(v => v.ID !== vehicleId);
-                    assignments = assignments.filter(a => a['Xe'] !== vehicleId);
+                    // Thành công: xóa khỏi localStorage
+                    removeLocalVehicle(vehicleId);
                     renderAllTables();
                     alert('Đã xóa xe khỏi Google Sheet thành công!');
                     
                 } catch (error) {
                     console.error('Error deleting vehicle:', error);
-                    alert('Lỗi xóa xe: ' + error.message);
+                    // Fallback: chỉ xóa local
+                    removeLocalVehicle(vehicleId);
+                    renderAllTables();
+                    alert('Đã xóa xe tạm trên trình duyệt (chưa xóa khỏi Sheet). Lỗi: ' + error.message);
                 }
             }
         }
