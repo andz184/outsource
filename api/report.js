@@ -59,12 +59,24 @@ export default async function handler(req, res) {
         });
         return res.status(200).json({ ok: true, created: true });
       } else {
-        // rowIndex is 0-based; header at 0 -> add 1 for 1-based row, +1 again to skip header
-        const targetRow = rowIndex + 1; // already accounts header because findIndex starts at >0
-        // Build update range/values for entire row based on headers
-        const row = headers.map(h => data[h] ?? '');
-        row[0] = data.id;
-        const range = `${sheetName}!A${targetRow}:${columnLetter(headers.length)}${targetRow}`;
+        // rowIndex is 0-based; header at 0 -> +1 for 1-based row
+        const targetRow = rowIndex + 1;
+        // Read current row to avoid wiping unspecified fields
+        const currRange = `${sheetName}!A${targetRow}:${columnLetter(headers.length)}${targetRow}`;
+        const existingResp = await sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: currRange,
+        });
+        const existingRow = existingResp.data.values?.[0] || Array(headers.length).fill('');
+        // Build a header->value map from existing row
+        const currMap = {};
+        headers.forEach((h, i) => { currMap[h] = existingRow[i] ?? ''; });
+        // Merge with incoming data (only override provided keys)
+        Object.keys(data).forEach(k => { currMap[k] = data[k]; });
+        currMap['id'] = data.id; // make sure A stays ID even if header text differs case
+        // Reconstruct row in header order
+        const row = headers.map(h => currMap[h] ?? '');
+        const range = currRange;
         await sheets.spreadsheets.values.update({
           spreadsheetId: sheetId,
           range,
