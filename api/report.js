@@ -39,6 +39,15 @@ export default async function handler(req, res) {
         range: `${sheetName}!1:1`,
       });
       const headers = headerResp.data.values?.[0] || [];
+      const normMap = {}; // normalized header -> real header
+      headers.forEach(h => { normMap[norm(h)] = h; });
+      function valueByHeader(h, source) {
+        // try exact header first, then normalized key match
+        if (source.hasOwnProperty(h)) return source[h];
+        const n = norm(h);
+        const hit = Object.keys(source).find(k => norm(k) === n);
+        return hit ? source[hit] : '';
+      }
 
       // Find row by ID (col A)
       const idResp = await sheets.spreadsheets.values.get({
@@ -49,7 +58,7 @@ export default async function handler(req, res) {
       let rowIndex = colA.findIndex((v, i) => i > 0 && String(v || '').trim().toLowerCase() === String(data.id).trim().toLowerCase());
       if (rowIndex === -1) {
         // append
-        const row = headers.map(h => data[h] ?? '');
+        const row = headers.map(h => valueByHeader(h, data));
         row[0] = data.id; // ensure ID at col A
         await sheets.spreadsheets.values.append({
           spreadsheetId: sheetId,
@@ -72,10 +81,14 @@ export default async function handler(req, res) {
         const currMap = {};
         headers.forEach((h, i) => { currMap[h] = existingRow[i] ?? ''; });
         // Merge with incoming data (only override provided keys)
-        Object.keys(data).forEach(k => { currMap[k] = data[k]; });
-        currMap['id'] = data.id; // make sure A stays ID even if header text differs case
+        Object.keys(data).forEach(k => {
+          const targetHeader = normMap[norm(k)] || k;
+          currMap[targetHeader] = data[k];
+        });
+        // ensure ID in first column
+        currMap[headers[0]] = data.id;
         // Reconstruct row in header order
-        const row = headers.map(h => currMap[h] ?? '');
+        const row = headers.map(h => currMap[h] ?? valueByHeader(h, data) ?? '');
         const range = currRange;
         await sheets.spreadsheets.values.update({
           spreadsheetId: sheetId,
@@ -129,6 +142,14 @@ async function getSheetGid(sheets, spreadsheetId, sheetName) {
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
   const sh = meta.data.sheets?.find(s => s.properties?.title === sheetName);
   return sh?.properties?.sheetId;
+}
+
+function norm(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
 }
 
 
