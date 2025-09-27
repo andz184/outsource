@@ -355,22 +355,159 @@
 
     <!-- Modal Phân phối Đơn hàng -->
     <div id="assignmentModal" class="modal">
-        <div class="modal-content">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
             <span class="close" onclick="closeAssignmentModal()">&times;</span>
             <h2>Phân phối Đơn hàng</h2>
             <form id="assignmentForm">
+                <!-- Thông tin xe -->
                 <div class="form-group">
                     <label>Chọn Xe:</label>
                     <select id="assignmentVehicle" required>
                         <option value="">-- Chọn xe --</option>
                     </select>
                 </div>
+                
+                <!-- Thông tin Bill cơ bản -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Số Bill:</label>
+                        <input type="text" id="assignmentBillNumber" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ngày bốc:</label>
+                        <input type="date" id="assignmentPickupDate" required>
+                    </div>
+                </div>
+                
+                <!-- Thông tin khách gửi -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Mã khách gửi:</label>
+                        <input type="text" id="assignmentSenderCode">
+                    </div>
+                    <div class="form-group">
+                        <label>Tên khách gửi:</label>
+                        <input type="text" id="assignmentSenderName" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Xã:</label>
+                        <input type="text" id="assignmentWard">
+                    </div>
+                    <div class="form-group">
+                        <label>Địa chỉ:</label>
+                        <input type="text" id="assignmentAddress">
+                    </div>
+                </div>
+                
+                <!-- Thông tin khách nhận -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tên khách nhận:</label>
+                        <input type="text" id="assignmentReceiverName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Địa chỉ nhận:</label>
+                        <input type="text" id="assignmentReceiverAddress" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tỉnh nhận:</label>
+                        <input type="text" id="assignmentReceiverProvince" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Xã nhận:</label>
+                        <input type="text" id="assignmentReceiverWard">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>SĐT khách nhận:</label>
+                        <input type="text" id="assignmentReceiverPhone">
+                    </div>
+                    <div class="form-group">
+                        <label>Dịch vụ GTGT:</label>
+                        <input type="text" id="assignmentService">
+                    </div>
+                </div>
+                
+                <!-- Thông tin hàng hóa -->
                 <div class="form-group">
-                    <label>Chọn Đơn hàng:</label>
-                    <select id="assignmentBill" required>
-                        <option value="">-- Chọn đơn hàng --</option>
+                    <label>Nội dung hàng hóa:</label>
+                    <textarea id="assignmentContent" rows="2"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Số kiện:</label>
+                        <input type="number" id="assignmentPackages" min="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Trọng lượng thực:</label>
+                        <input type="number" id="assignmentWeight" step="0.1" min="0">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Thể tích:</label>
+                        <input type="number" id="assignmentVolume" step="0.1" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Đơn vị tính cước:</label>
+                        <input type="text" id="assignmentUnit">
+                    </div>
+                </div>
+                
+                <!-- Thông tin tài chính -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Đơn giá:</label>
+                        <input type="number" id="assignmentUnitPrice" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Phụ phí:</label>
+                        <input type="number" id="assignmentExtraFee" step="0.01" min="0">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>VAT:</label>
+                        <input type="number" id="assignmentVAT" step="0.01" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Thành tiền:</label>
+                        <input type="number" id="assignmentTotalAmount" step="0.01" min="0" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Người thanh toán:</label>
+                        <input type="text" id="assignmentPayer">
+                    </div>
+                    <div class="form-group">
+                        <label>COD:</label>
+                        <input type="number" id="assignmentCOD" step="0.01" min="0">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Trạng thái thanh toán:</label>
+                    <select id="assignmentPaymentStatus">
+                        <option value="Chưa thanh toán">Chưa thanh toán</option>
+                        <option value="Đã thanh toán">Đã thanh toán</option>
+                        <option value="Công nợ">Công nợ</option>
                     </select>
                 </div>
+                
+                <!-- Thông tin phân phối -->
                 <div class="form-row">
                     <div class="form-group">
                         <label>Số thứ tự:</label>
@@ -381,10 +518,12 @@
                         <input type="number" id="assignmentQuantity" min="1" required>
                     </div>
                 </div>
+                
                 <div class="form-group">
                     <label>Ghi chú:</label>
                     <textarea id="assignmentNote" rows="3"></textarea>
                 </div>
+                
                 <div class="form-group">
                     <button type="submit" class="btn btn-success">Lưu</button>
                     <button type="button" class="btn" onclick="closeAssignmentModal()">Hủy</button>
@@ -840,7 +979,6 @@
         function showAssignmentModal(assignmentId = null) {
             const modal = document.getElementById('assignmentModal');
             const vehicleSelect = document.getElementById('assignmentVehicle');
-            const billSelect = document.getElementById('assignmentBill');
             
             // Populate vehicle options
             vehicleSelect.innerHTML = '<option value="">-- Chọn xe --</option>';
@@ -851,14 +989,15 @@
                 vehicleSelect.appendChild(option);
             });
             
-            // Populate bill options
-            billSelect.innerHTML = '<option value="">-- Chọn đơn hàng --</option>';
-            bills.forEach(bill => {
-                const option = document.createElement('option');
-                option.value = bill.ID;
-                option.textContent = `${bill['Tên đơn hàng']} - ${bill['Số lượng']} đơn vị`;
-                billSelect.appendChild(option);
-            });
+            // Reset form
+            document.getElementById('assignmentForm').reset();
+            
+            // Set default values
+            document.getElementById('assignmentPickupDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('assignmentPaymentStatus').value = 'Công nợ';
+            document.getElementById('assignmentOrder').value = 1;
+            document.getElementById('assignmentQuantity').value = 1;
+            document.getElementById('assignmentPackages').value = 1;
             
             modal.style.display = 'block';
         }
@@ -981,7 +1120,30 @@
             const assignmentData = {
                 ID: 'ASS' + Date.now(),
                 'Xe': document.getElementById('assignmentVehicle').value,
-                'Bill': document.getElementById('assignmentBill').value,
+                'Số Bill': document.getElementById('assignmentBillNumber').value,
+                'Ngày bốc': document.getElementById('assignmentPickupDate').value,
+                'Mã khách gửi': document.getElementById('assignmentSenderCode').value,
+                'Tên khách gửi': document.getElementById('assignmentSenderName').value,
+                'Xã': document.getElementById('assignmentWard').value,
+                'Địa chỉ': document.getElementById('assignmentAddress').value,
+                'Tên khách nhận': document.getElementById('assignmentReceiverName').value,
+                'Địa chỉ nhận': document.getElementById('assignmentReceiverAddress').value,
+                'Tỉnh nhận': document.getElementById('assignmentReceiverProvince').value,
+                'Xã nhận': document.getElementById('assignmentReceiverWard').value,
+                'SĐT khách nhận': document.getElementById('assignmentReceiverPhone').value,
+                'Dịch vụ GTGT': document.getElementById('assignmentService').value,
+                'Nội dung hàng hóa': document.getElementById('assignmentContent').value,
+                'Số kiện': document.getElementById('assignmentPackages').value,
+                'Trọng lượng thực': document.getElementById('assignmentWeight').value,
+                'Thể tích': document.getElementById('assignmentVolume').value,
+                'Đơn vị tính cước': document.getElementById('assignmentUnit').value,
+                'Đơn giá': document.getElementById('assignmentUnitPrice').value,
+                'Phụ phí': document.getElementById('assignmentExtraFee').value,
+                'VAT': document.getElementById('assignmentVAT').value,
+                'Thành tiền': document.getElementById('assignmentTotalAmount').value,
+                'Người thanh toán': document.getElementById('assignmentPayer').value,
+                'COD': document.getElementById('assignmentCOD').value,
+                'Trạng thái thanh toán': document.getElementById('assignmentPaymentStatus').value,
                 'Số thứ tự': document.getElementById('assignmentOrder').value,
                 'Số lượng hàng': document.getElementById('assignmentQuantity').value,
                 'Ghi chú': document.getElementById('assignmentNote').value
@@ -1135,28 +1297,28 @@
                 console.log('Bắt đầu sắp xếp STT...');
                 console.log('Tổng số bills trước khi sắp xếp:', bills.length);
                 
-                // Sắp xếp bills theo STT
-                bills.sort((a, b) => {
-                    const sttA = parseInt(a['STT']) || 0;
-                    const sttB = parseInt(b['STT']) || 0;
-                    return sttA - sttB;
-                });
-                
-                // Cập nhật lại STT liên tiếp
-                bills.forEach((bill, index) => {
-                    bill['STT'] = index + 1;
-                    upsertLocalBill(bill);
-                });
+            // Sắp xếp bills theo STT
+            bills.sort((a, b) => {
+                const sttA = parseInt(a['STT']) || 0;
+                const sttB = parseInt(b['STT']) || 0;
+                return sttA - sttB;
+            });
+            
+            // Cập nhật lại STT liên tiếp
+            bills.forEach((bill, index) => {
+                bill['STT'] = index + 1;
+                upsertLocalBill(bill);
+            });
                 
                 console.log('Đã cập nhật STT local, đang gửi lên Google Sheet...');
                 console.log('Bills sau khi sắp xếp:', bills.map(b => ({ 'Số Bill': b['Số Bill'], 'STT': b['STT'] })));
-                
-                // Cập nhật tất cả STT vào sheet
+            
+            // Cập nhật tất cả STT vào sheet
                 const result = await updateAllSTTInSheet();
-                
-                // Render lại table
-                renderAssignmentTable();
-                
+            
+            // Render lại table
+            renderAssignmentTable();
+            
                 if (result && result.success) {
                     alert(`Đã sắp xếp và cập nhật STT thành công!\nCập nhật: ${result.updated}/${bills.length} items`);
                 } else {
@@ -1204,7 +1366,7 @@
                 console.log('API Success Response:', result);
                 
                 if (result.ok) {
-                    console.log('All STT updated in sheet successfully');
+                console.log('All STT updated in sheet successfully');
                     return {
                         success: true,
                         updated: result.updated || bills.length,
