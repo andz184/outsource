@@ -181,6 +181,44 @@
             border: 1px solid #bdc3c7;
             border-radius: 4px;
         }
+        
+        /* Print styles */
+        @media print {
+            .nav-tabs, .form-group, .btn, .search-box {
+                display: none !important;
+            }
+            .container {
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+                width: 100% !important;
+            }
+            .header {
+                background: white !important;
+                color: black !important;
+                padding: 10px 0;
+            }
+            .table {
+                font-size: 6px !important;
+                width: 100% !important;
+                table-layout: fixed;
+            }
+            .table th, .table td {
+                padding: 2px !important;
+                border: 1px solid #000 !important;
+                word-wrap: break-word;
+                overflow: hidden;
+                white-space: nowrap;
+            }
+            body {
+                margin: 0;
+                padding: 5px;
+            }
+            @page {
+                margin: 0.3in;
+                size: A4 landscape;
+            }
+        }
     </style>
 </head>
 <body>
@@ -230,7 +268,7 @@
             <div class="form-group">
                 <button class="btn btn-success" onclick="showAssignmentModal()">Phân phối Đơn hàng</button>
                 <button class="btn" onclick="sortBillsBySTT()" style="background: #f39c12; color: white;">Sắp xếp theo STT tùy chỉnh</button>
-                <button class="btn" onclick="exportAssignmentsToPDF()" style="background: #e74c3c; color: white;">In PDF</button>
+                <button class="btn" onclick="printAssignments()" style="background: #e74c3c; color: white;">In</button>
             </div>
             
             <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
@@ -1351,26 +1389,26 @@
                 });
                 
                 // Sắp xếp bills theo STT từ input fields (giữ nguyên STT người dùng chỉnh)
-                bills.sort((a, b) => {
-                    const sttA = parseInt(a['STT']) || 0;
-                    const sttB = parseInt(b['STT']) || 0;
-                    return sttA - sttB;
-                });
-                
+            bills.sort((a, b) => {
+                const sttA = parseInt(a['STT']) || 0;
+                const sttB = parseInt(b['STT']) || 0;
+                return sttA - sttB;
+            });
+            
                 // Lưu STT đã sắp xếp vào local storage (không thay đổi STT)
                 bills.forEach((bill) => {
-                    upsertLocalBill(bill);
-                });
+                upsertLocalBill(bill);
+            });
                 
                 console.log('Đã cập nhật STT local, đang gửi lên Google Sheet...');
                 console.log('Bills sau khi sắp xếp:', bills.map(b => ({ 'Số Bill': b['Số Bill'], 'STT': b['STT'] })));
-                
-                // Cập nhật tất cả STT vào sheet
+            
+            // Cập nhật tất cả STT vào sheet
                 const result = await updateAllSTTInSheet();
-                
-                // Render lại table
-                renderAssignmentTable();
-                
+            
+            // Render lại table
+            renderAssignmentTable();
+            
                 if (result && result.success) {
                     alert(`Đã sắp xếp theo STT tùy chỉnh thành công!\nCập nhật: ${result.updated}/${bills.length} items\n\nThứ tự hiện tại: ${bills.map(b => b['STT']).join(', ')}`);
                 } else {
@@ -1516,9 +1554,9 @@
             return String(text);
         }
 
-        function exportAssignmentsToPDF() {
+        function printAssignments() {
             try {
-                // Tạo một div ẩn để chứa bảng cho PDF
+                // Tạo một div ẩn để chứa bảng cho print
                 const printDiv = document.createElement('div');
                 printDiv.style.cssText = `
                     position: absolute;
@@ -1545,26 +1583,41 @@
                 table.style.cssText = `
                     width: 100%;
                     border-collapse: collapse;
-                    font-size: 10px;
+                    font-size: 6px;
                     margin-bottom: 20px;
+                    table-layout: fixed;
                 `;
                 
-                // Header của bảng
+                // Header của bảng với tất cả cột
                 const thead = document.createElement('thead');
                 thead.innerHTML = `
                     <tr style="background-color: #34495e; color: white;">
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">STT</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Số Bill</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Ngày bốc</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Khách gửi</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Khách nhận</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Địa chỉ nhận</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Tỉnh</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Nội dung</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Số kiện</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Trọng lượng</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Thành tiền</th>
-                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Trạng thái</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">STT</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Số Bill</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Ngày bốc</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Mã khách gửi</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Tên khách gửi</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Xã</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Địa chỉ đã lưu</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Tên khách nhận</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Địa chỉ nhận</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Tỉnh nhận</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Xã nhận</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">SĐT khách nhận</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Dịch vụ GTGT</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Nội dung hàng hóa</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Số kiện</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Trọng lượng thực</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Thể tích</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Đơn vị tính cước</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Đơn giá</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Phụ phí</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">VAT</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Thành tiền</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Người thanh toán</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">COD</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Trạng thái thanh toán</th>
+                        <th style="border: 1px solid #ddd; padding: 4px; text-align: center; font-size: 8px;">Ghi chú</th>
                     </tr>
                 `;
                 table.appendChild(thead);
@@ -1583,18 +1636,32 @@
                     const row = document.createElement('tr');
                     row.style.cssText = index % 2 === 0 ? 'background-color: #f8f9fa;' : 'background-color: white;';
                     row.innerHTML = `
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${bill['STT'] || (index + 1)}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px;">${bill['Số Bill'] || ''}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px;">${formatDate(bill['Ngày bốc']) || ''}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px;">${bill['Tên khách gửi'] || ''}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px;">${bill['Tên khách nhận'] || ''}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; max-width: 100px; word-wrap: break-word;">${bill['Địa chỉ nhận'] || ''}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px;">${bill['Tỉnh nhận'] || ''}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; max-width: 80px; word-wrap: break-word;">${bill['Nội dung hàng hóa'] || ''}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${bill['Số kiện'] || ''}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${bill['Trọng lượng thực'] || ''}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${bill['Thành tiền'] || ''}</td>
-                        <td style="border: 1px solid #ddd; padding: 6px;">${bill['Trạng thái thanh toán'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 7px;">${bill['STT'] || (index + 1)}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Số Bill'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${formatDate(bill['Ngày bốc']) || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Mã khách gửi'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Tên khách gửi'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Xã'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px; word-wrap: break-word;">${bill['Địa chỉ đã lưu'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Tên khách nhận'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px; word-wrap: break-word;">${bill['Địa chỉ nhận'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Tỉnh nhận'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Xã nhận'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['SĐT khách nhận'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Dịch vụ GTGT'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px; word-wrap: break-word;">${bill['Nội dung hàng hóa'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 7px;">${bill['Số kiện'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 7px;">${bill['Trọng lượng thực'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 7px;">${bill['Thể tích'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Đơn vị tính cước'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 7px;">${bill['Đơn giá'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 7px;">${bill['Phụ phí'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 7px;">${bill['VAT'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 7px;">${bill['Thành tiền'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Người thanh toán'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; text-align: center; font-size: 7px;">${bill['COD'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Trạng thái thanh toán'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 3px; font-size: 7px;">${bill['Ghi chú'] || ''}</td>
                     `;
                     tbody.appendChild(row);
                 });
@@ -1611,51 +1678,19 @@
                 // Thêm vào DOM
                 document.body.appendChild(printDiv);
                 
-                // Chụp ảnh và tạo PDF
-                html2canvas(printDiv, {
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#ffffff'
-                }).then(canvas => {
-                    const imgData = canvas.toDataURL('image/png');
-                    const { jsPDF } = window.jspdf;
-                    const doc = new jsPDF('l', 'mm', 'a4');
-                    
-                    const imgWidth = 297; // A4 width in mm
-                    const pageHeight = 210; // A4 height in mm
-                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                    let heightLeft = imgHeight;
-                    
-                    let position = 0;
-                    
-                    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-                    
-                    while (heightLeft >= 0) {
-                        position = heightLeft - imgHeight;
-                        doc.addPage();
-                        doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                        heightLeft -= pageHeight;
+                // Mở dialog print
+                window.print();
+                
+                // Xóa div tạm sau khi print
+                setTimeout(() => {
+                    if (document.body.contains(printDiv)) {
+                        document.body.removeChild(printDiv);
                     }
-                
-                // Lưu file
-                const fileName = `Bao_cao_don_hang_${new Date().toISOString().split('T')[0]}.pdf`;
-                doc.save(fileName);
-                
-                    // Xóa div tạm
-                    document.body.removeChild(printDiv);
-                    
-                    alert('Đã xuất PDF thành công với ký tự tiếng Việt đầy đủ!');
-                }).catch(error => {
-                    console.error('Error generating PDF:', error);
-                    document.body.removeChild(printDiv);
-                    alert('Lỗi khi xuất PDF: ' + error.message);
-                });
+                }, 1000);
                 
             } catch (error) {
-                console.error('Error exporting PDF:', error);
-                alert('Lỗi khi xuất PDF: ' + error.message);
+                console.error('Error printing:', error);
+                alert('Lỗi khi in: ' + error.message);
             }
         }
 
