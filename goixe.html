@@ -232,13 +232,48 @@
             <div class="nav-tab active" onclick="showTab('vehicles')">Quản lý Xe</div>
             <div class="nav-tab" onclick="showTab('assignments')">Phân phối Đơn hàng</div>
             <div class="nav-tab" onclick="showTab('status')">Trạng thái Xe</div>
-            <div class="nav-tab" onclick="showTab('unassigned')">Đơn chưa xếp</div>
+            <div class="nav-tab" onclick="showTab('unassigned')">Xếp hàng</div>
         </div>
 
         <!-- Tab 1: Quản lý Xe -->
         <div id="vehicles" class="tab-content active">
             <div class="form-group">
                 <button class="btn btn-success" onclick="showVehicleModal()">Thêm Xe mới</button>
+            </div>
+            
+            <!-- Bộ lọc xe -->
+            <div class="form-row" style="margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                <div class="form-group">
+                    <label>Lọc theo ngày xuất xe:</label>
+                    <input type="date" id="filterVehicleDate" onchange="filterVehicles()">
+                </div>
+                <div class="form-group">
+                    <label>Lọc theo nhà cung cấp:</label>
+                    <select id="filterVehicleSupplier" onchange="filterVehicles()">
+                        <option value="">-- Tất cả nhà cung cấp --</option>
+                        <option value="XELE">XELE - Xe lẻ</option>
+                        <option value="CHIEN3C">CHIEN3C - Chiến 3 chân</option>
+                        <option value="DUNG3C">DUNG3C - Dũng 3 chân</option>
+                        <option value="VIETTEL48">VIETTEL48 - Viettel tàu 48h</option>
+                        <option value="SONGTR">SONGTR - Song Trường Cont</option>
+                        <option value="TINH3C">TINH3C - Tình 3 chân</option>
+                        <option value="VIC">VIC - XE VIC</option>
+                        <option value="BFY72">BFY72 - BFY Tàu 72h</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Lọc theo trạng thái:</label>
+                    <select id="filterVehicleStatus" onchange="filterVehicles()">
+                        <option value="">-- Tất cả trạng thái --</option>
+                        <option value="pending">Chờ xếp hàng</option>
+                        <option value="in-transit">Đang vận chuyển</option>
+                        <option value="delivered">Đã giao hàng</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button class="btn" onclick="clearVehicleFilters()" style="background: #95a5a6; color: white;">Xóa bộ lọc</button>
+                </div>
             </div>
             
             <div class="search-box">
@@ -248,13 +283,17 @@
             <table class="table" id="vehicleTable">
                 <thead>
                     <tr>
-                        <th>ID Xe</th>
-                        <th>Biển số</th>
-                        <th>Tài xế</th>
-                        <th>SĐT Tài xế</th>
+                        <th>STT</th>
                         <th>Ngày xuất xe</th>
-                        <th>Ngày dự kiến</th>
                         <th>Trạng thái</th>
+                        <th>Ghi chú</th>
+                        <th>Ngày dự kiến</th>
+                        <th>Tên nhà cung cấp</th>
+                        <th>Trạng thái thanh toán</th>
+                        <th>Biển kiểm soát</th>
+                        <th>Lái xe</th>
+                        <th>SBT lái xe</th>
+                        <th>Ghi chú bổ sung</th>
                         <th>Thao tác</th>
                     </tr>
                 </thead>
@@ -318,23 +357,35 @@
             </div>
         </div>
 
-        <!-- Tab 4: Đơn chưa xếp -->
+        <!-- Tab 4: Xếp hàng -->
         <div id="unassigned" class="tab-content">
-            <h3>Đơn hàng chưa xếp hoặc xếp chưa hết</h3>
+            <h3>Bảng xếp hàng</h3>
+            <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
             <table class="table" id="unassignedTable">
                 <thead>
                     <tr>
-                        <th>ID Đơn hàng</th>
-                        <th>Tên khách hàng</th>
-                        <th>Số lượng tổng</th>
-                        <th>Đã xếp</th>
-                        <th>Còn lại</th>
+                        <th>ID</th>
+                        <th>Xe</th>
+                        <th>NCC</th>
+                        <th>Bill</th>
+                        <th>Khách hàng</th>
+                        <th>Tên mặt hàng</th>
+                        <th>Số kiện</th>
+                        <th>Tỉnh trả</th>
+                        <th>Xã trả</th>
+                        <th>Nơi trả</th>
+                        <th>Ngày xuất xe</th>
+                        <th>Ghi chú</th>
+                        <th>STT</th>
+                        <th>Ảnh Bill</th>
+                        <th>Tổng chi phí</th>
                         <th>Thao tác</th>
                     </tr>
                 </thead>
                 <tbody id="unassignedTableBody">
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 
@@ -350,17 +401,17 @@
                         <input type="text" id="vehicleId" required>
                     </div>
                     <div class="form-group">
-                        <label>Biển số:</label>
+                        <label>Biển kiểm soát:</label>
                         <input type="text" id="vehiclePlate" required>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Tài xế:</label>
+                        <label>Lái xe:</label>
                         <input type="text" id="vehicleDriver" required>
                     </div>
                     <div class="form-group">
-                        <label>SĐT Tài xế:</label>
+                        <label>SBT lái xe:</label>
                         <input type="text" id="vehicleDriverPhone" required>
                     </div>
                 </div>
@@ -371,7 +422,37 @@
                     </div>
                     <div class="form-group">
                         <label>Ngày dự kiến:</label>
-                        <input type="date" id="vehicleExpectedDate" readonly>
+                        <input type="text" id="vehicleExpectedDate" placeholder="Có thể là mã hoặc ngày">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Mã nhà cung cấp:</label>
+                        <select id="vehicleSupplierCode">
+                            <option value="">-- Chọn mã nhà cung cấp --</option>
+                            <option value="XELE">XELE - Xe lẻ</option>
+                            <option value="CHIEN3C">CHIEN3C - Chiến 3 chân</option>
+                            <option value="DUNG3C">DUNG3C - Dũng 3 chân</option>
+                            <option value="VIETTEL48">VIETTEL48 - Viettel tàu 48h</option>
+                            <option value="SONGTR">SONGTR - Song Trường Cont</option>
+                            <option value="TINH3C">TINH3C - Tình 3 chân</option>
+                            <option value="VIC">VIC - XE VIC</option>
+                            <option value="BFY72">BFY72 - BFY Tàu 72h</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Tên nhà cung cấp:</label>
+                        <input type="text" id="vehicleSupplierName" readonly>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Trạng thái thanh toán:</label>
+                        <input type="text" id="vehiclePaymentStatus">
+                    </div>
+                    <div class="form-group">
+                        <label>&nbsp;</label>
+                        <div></div>
                     </div>
                 </div>
                 <div class="form-group">
@@ -381,6 +462,16 @@
                         <option value="in-transit">Đang vận chuyển</option>
                         <option value="delivered">Đã giao hàng</option>
                     </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ghi chú:</label>
+                        <textarea id="vehicleNote" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Ghi chú bổ sung:</label>
+                        <textarea id="vehicleAdditionalNote" rows="2"></textarea>
+                    </div>
                 </div>
                 <div class="form-group">
                     <button type="submit" class="btn btn-success">Lưu</button>
@@ -594,9 +685,28 @@
             // Vehicle form
             document.getElementById('vehicleForm').addEventListener('submit', saveVehicle);
             document.getElementById('vehicleDepartureDate').addEventListener('change', calculateExpectedDate);
+            document.getElementById('vehicleSupplierCode').addEventListener('change', updateSupplierName);
             
             // Assignment form
             document.getElementById('assignmentForm').addEventListener('submit', saveAssignment);
+        }
+        
+        function updateSupplierName() {
+            const supplierCode = document.getElementById('vehicleSupplierCode').value;
+            const supplierNameField = document.getElementById('vehicleSupplierName');
+            
+            const supplierMap = {
+                'XELE': 'Xe lẻ',
+                'CHIEN3C': 'Chiến 3 chân',
+                'DUNG3C': 'Dũng 3 chân',
+                'VIETTEL48': 'Viettel tàu 48h',
+                'SONGTR': 'Song Trường Cont',
+                'TINH3C': 'Tình 3 chân',
+                'VIC': 'XE VIC',
+                'BFY72': 'BFY Tàu 72h'
+            };
+            
+            supplierNameField.value = supplierMap[supplierCode] || '';
         }
 
         function calculateExpectedDate() {
@@ -709,14 +819,34 @@
                     
                     // Map theo tên cột thực tế trong sheet xe của bạn
                     const vehicle = {
-                        ID: raw['ID'] || raw['id'],
-                        'Biển số': raw['Biển kiểm soát'] || raw['Bien kiem soat'],
-                        'Tài xế': raw['Lái xe'] || raw['Lai xe'],
-                        'SĐT Tài xế': raw['SBT lái xe'] || raw['SĐT lái xe'],
-                        'Ngày xuất xe': raw['NgayXuat'] || raw['Ngày xuất'],
-                        'Ngày dự kiến': raw['NgayDuKien'] || raw['Ngày dự kiến'],
+                        ID: raw['ID'] || raw['id'] || raw['D'] || (index + 1),
+                        'STT': raw['D'] || raw['STT'] || (index + 1),
+                        'Ngày xuất xe': raw['NgayXuat'] || raw['Ngày xuất xe'] || raw['Ngày xuất'],
+                        'NgayXuat': raw['NgayXuat'] || raw['Ngày xuất xe'],
                         'Trạng thái': raw['TrangThai'] || raw['Trạng thái'] || 'pending',
-                        'Ghi chú': raw['GhiChu'] || raw['Ghi chú']
+                        'TrangThai': raw['TrangThai'] || raw['Trạng thái'],
+                        'Ghi chú': raw['GhiChu'] || raw['Ghi chú'],
+                        'GhiChu': raw['GhiChu'] || raw['Ghi chú'],
+                        'Ngày dự kiến': raw['NgayDuKien'] || raw['Ngày dự kiến'],
+                        'NgayDuKien': raw['NgayDuKien'] || raw['Ngày dự kiến'],
+                        'Tên nhà cung cấp': raw['Tên nhà cung cấp'] || raw['Ten nha cung cap'],
+                        'TenNhaCungCap': raw['Tên nhà cung cấp'] || raw['Ten nha cung cap'],
+                        'Mã nhà cung cấp': raw['Mã nhà cung cấp'] || raw['Ma nha cung cap'],
+                        'MaNhaCungCap': raw['Mã nhà cung cấp'] || raw['Ma nha cung cap'],
+                        'NCC': raw['NCC'] || raw['ncc'],
+                        'Trạng thái thanh toán': raw['Trạng thái thanh toán'] || raw['Trang thai thanh toan'],
+                        'TrangThaiThanhToan': raw['Trạng thái thanh toán'] || raw['Trang thai thanh toan'],
+                        'Biển số': raw['Biển kiểm soát'] || raw['Bien kiem soat'] || raw['Biển số'],
+                        'Biển kiểm soát': raw['Biển kiểm soát'] || raw['Bien kiem soat'],
+                        'BienKiemSoat': raw['Biển kiểm soát'] || raw['Bien kiem soat'],
+                        'Tài xế': raw['Lái xe'] || raw['Lai xe'] || raw['Tài xế'],
+                        'Lái xe': raw['Lái xe'] || raw['Lai xe'],
+                        'LaiXe': raw['Lái xe'] || raw['Lai xe'],
+                        'SĐT Tài xế': raw['SBT lái xe'] || raw['SĐT lái xe'] || raw['SĐT Tài xế'],
+                        'SBT lái xe': raw['SBT lái xe'] || raw['SĐT lái xe'],
+                        'SBTLaiXe': raw['SBT lái xe'] || raw['SĐT lái xe'],
+                        'Ghi chú bổ sung': raw['Ghi chú bổ sung'] || raw['Ghi chu bo sung'],
+                        'GhiChuBoSung': raw['Ghi chú bổ sung'] || raw['Ghi chu bo sung']
                     };
                     
                     if (vehicle.ID) {
@@ -746,23 +876,32 @@
                         raw[headers[i]] = cell ? cell.v : '';
                     });
                     
-                    // Map tất cả các trường từ sheet Bill
+                    // Map tất cả các trường từ sheet Bill và bảng xếp hàng
                     const bill = {
+                        'ID': raw['ID'] || raw['id'] || raw['Số Bill'],
+                        'Xe': raw['Xe'] || raw['xe'],
+                        'NCC': raw['NCC'] || raw['ncc'] || raw['Mã khách gửi'],
                         'STT': raw['STT'] || raw['stt'] || (index),
                         'Số Bill': raw['Số Bill'] || raw['So Bill'] || raw['Số bill'],
                         'Ngày bốc': raw['Ngày bốc'] || raw['Ngay boc'],
+                        'Ngày xuất xe': raw['Ngày xuất xe'] || raw['Ngay xuat xe'],
                         'Mã khách gửi': raw['Mã khách gửi'] || raw['Ma khach gui'],
                         'Tên khách gửi': raw['Tên khách gửi'] || raw['Ten khach gui'],
+                        'Khách hàng': raw['Khách hàng'] || raw['Khach hang'] || raw['Tên khách gửi'],
                         'Xã': raw['Xã'] || raw['Xa'],
                         'Địa chỉ': raw['Địa chỉ'] || raw['Dia chi'],
                         'Địa chỉ đã lưu': raw['Địa chỉ đã lưu'] || raw['Dia chi da luu'],
                         'Tên khách nhận': raw['Tên khách nhận'] || raw['Ten khach nhan'],
                         'Địa chỉ nhận': raw['Địa chỉ nhận'] || raw['Dia chi nhan'],
                         'Tỉnh nhận': raw['Tỉnh nhận'] || raw['Tinh nhan'],
+                        'Tỉnh trả': raw['Tỉnh trả'] || raw['Tinh tra'] || raw['Tỉnh nhận'],
                         'Xã nhận': raw['Xã nhận'] || raw['Xa nhan'],
+                        'Xã trả': raw['Xã trả'] || raw['Xa tra'] || raw['Xã nhận'],
+                        'Nơi trả': raw['Nơi trả'] || raw['Noi tra'] || raw['Địa chỉ nhận'],
                         'SĐT khách nhận': raw['SĐT khách nhận'] || raw['SDT khach nhan'],
                         'Dịch vụ GTGT': raw['Dịch vụ GTGT'] || raw['Dich vu GTGT'],
                         'Nội dung hàng hóa': raw['Nội dung hàng hóa'] || raw['Noi dung hang hoa'],
+                        'Tên mặt hàng': raw['Tên mặt hàng'] || raw['Ten mat hang'] || raw['Nội dung hàng hóa'],
                         'Số kiện': raw['Số kiện'] || raw['So kien'],
                         'Trọng lượng thực': raw['Trọng lượng thực'] || raw['Trong luong thuc'],
                         'Thể tích': raw['Thể tích'] || raw['The tich'],
@@ -771,10 +910,12 @@
                         'Phụ phí': raw['Phụ phí'] || raw['Phu phi'],
                         'VAT': raw['VAT'] || raw['vat'],
                         'Thành tiền': raw['Thành tiền'] || raw['Thanh tien'],
+                        'Tổng chi phí': raw['Tổng chi phí'] || raw['Tong chi phi'] || raw['Thành tiền'],
                         'Người thanh toán': raw['Người thanh toán'] || raw['Nguoi thanh toan'],
                         'COD': raw['COD'] || raw['cod'],
                         'Trạng thái thanh toán': raw['Trạng thái thanh toán'] || raw['Trang thai thanh toan'],
-                        'Ghi chú': raw['Ghi chú'] || raw['Ghi chu']
+                        'Ghi chú': raw['Ghi chú'] || raw['Ghi chu'],
+                        'Ảnh Bill': raw['Ảnh Bill'] || raw['Anh Bill'] || raw['anh bill']
                     };
                     
                     if (bill['Số Bill']) {
@@ -881,16 +1022,20 @@
             const tbody = document.getElementById('vehicleTableBody');
             tbody.innerHTML = '';
             
-            vehicles.forEach(vehicle => {
+            vehicles.forEach((vehicle, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${vehicle.ID || ''}</td>
-                    <td>${vehicle['Biển số'] || ''}</td>
-                    <td>${vehicle['Tài xế'] || ''}</td>
-                    <td>${vehicle['SĐT Tài xế'] || ''}</td>
-                    <td>${formatDate(vehicle['Ngày xuất xe'])}</td>
-                    <td>${formatDate(vehicle['Ngày dự kiến'])}</td>
-                    <td><span class="status-badge status-${vehicle['Trạng thái'] || 'pending'}">${getStatusText(vehicle['Trạng thái'])}</span></td>
+                    <td>${index + 1}</td>
+                    <td>${formatDate(vehicle['Ngày xuất xe'] || vehicle['NgayXuat'])}</td>
+                    <td><span class="status-badge status-${vehicle['Trạng thái'] || vehicle['TrangThai'] || 'pending'}">${getStatusText(vehicle['Trạng thái'] || vehicle['TrangThai'])}</span></td>
+                    <td>${vehicle['Ghi chú'] || vehicle['GhiChu'] || ''}</td>
+                    <td>${formatDate(vehicle['Ngày dự kiến'] || vehicle['NgayDuKien']) || vehicle['NgayDuKien'] || ''}</td>
+                    <td>${vehicle['Tên nhà cung cấp'] || vehicle['TenNhaCungCap'] || ''}</td>
+                    <td>${vehicle['Trạng thái thanh toán'] || vehicle['TrangThaiThanhToan'] || ''}</td>
+                    <td>${vehicle['Biển số'] || vehicle['Biển kiểm soát'] || vehicle['BienKiemSoat'] || ''}</td>
+                    <td>${vehicle['Tài xế'] || vehicle['Lái xe'] || vehicle['LaiXe'] || ''}</td>
+                    <td>${vehicle['SĐT Tài xế'] || vehicle['SBT lái xe'] || vehicle['SBTLaiXe'] || ''}</td>
+                    <td>${vehicle['Ghi chú bổ sung'] || vehicle['GhiChuBoSung'] || ''}</td>
                     <td>
                         <button class="btn" onclick="editVehicle('${vehicle.ID}')">Sửa</button>
                         <button class="btn btn-danger" onclick="deleteVehicle('${vehicle.ID}')">Xóa</button>
@@ -979,27 +1124,31 @@
             const tbody = document.getElementById('unassignedTableBody');
             tbody.innerHTML = '';
             
-            bills.forEach(bill => {
-                const billAssignments = assignments.filter(a => a['Bill'] === bill.ID);
-                const totalAssigned = billAssignments.reduce((sum, a) => sum + (parseInt(a['Số lượng hàng']) || 0), 0);
-                const totalQuantity = parseInt(bill['Số lượng'] || 0);
-                const remaining = totalQuantity - totalAssigned;
-                
-                if (remaining > 0) {
-                    const customer = customers.find(c => c.ID === bill['Khách hàng']);
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${bill.ID || ''}</td>
-                        <td>${customer ? customer['Tên khách hàng'] : bill['Khách hàng']}</td>
-                        <td>${totalQuantity}</td>
-                        <td>${totalAssigned}</td>
-                        <td>${remaining}</td>
-                        <td>
-                            <button class="btn btn-success" onclick="assignBill('${bill.ID}')">Xếp hàng</button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                }
+            // Hiển thị tất cả bills từ bảng xếp hàng với đầy đủ thông tin
+            bills.forEach((bill, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${bill['ID'] || bill['Số Bill'] || ''}</td>
+                    <td>${bill['Xe'] || ''}</td>
+                    <td>${bill['NCC'] || bill['Mã khách gửi'] || ''}</td>
+                    <td>${bill['Số Bill'] || ''}</td>
+                    <td>${bill['Khách hàng'] || bill['Tên khách gửi'] || ''}</td>
+                    <td>${bill['Tên mặt hàng'] || bill['Nội dung hàng hóa'] || ''}</td>
+                    <td>${bill['Số kiện'] || ''}</td>
+                    <td>${bill['Tỉnh trả'] || bill['Tỉnh nhận'] || ''}</td>
+                    <td>${bill['Xã trả'] || bill['Xã nhận'] || ''}</td>
+                    <td>${bill['Nơi trả'] || bill['Địa chỉ nhận'] || ''}</td>
+                    <td>${formatDate(bill['Ngày xuất xe']) || formatDate(bill['Ngày bốc']) || ''}</td>
+                    <td>${bill['Ghi chú'] || ''}</td>
+                    <td>${bill['STT'] || (index + 1)}</td>
+                    <td>${bill['Ảnh Bill'] || ''}</td>
+                    <td>${bill['Tổng chi phí'] || bill['Thành tiền'] || ''}</td>
+                    <td>
+                        <button class="btn btn-success" onclick="assignBill('${bill['Số Bill']}')">Xếp hàng</button>
+                        <button class="btn" onclick="editBill('${bill['Số Bill']}')">Sửa</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
             });
         }
 
@@ -1022,13 +1171,35 @@
                 title.textContent = 'Sửa Xe';
                 const vehicle = vehicles.find(v => v.ID === vehicleId);
                 if (vehicle) {
-                    document.getElementById('vehicleId').value = vehicle.ID;
-                    document.getElementById('vehiclePlate').value = vehicle['Biển số'] || '';
-                    document.getElementById('vehicleDriver').value = vehicle['Tài xế'] || '';
-                    document.getElementById('vehicleDriverPhone').value = vehicle['SĐT Tài xế'] || '';
-                    document.getElementById('vehicleDepartureDate').value = vehicle['Ngày xuất xe'] || '';
-                    document.getElementById('vehicleExpectedDate').value = vehicle['Ngày dự kiến'] || '';
-                    document.getElementById('vehicleStatus').value = vehicle['Trạng thái'] || 'pending';
+                    document.getElementById('vehicleId').value = vehicle.ID || '';
+                    document.getElementById('vehiclePlate').value = vehicle['Biển số'] || vehicle['Biển kiểm soát'] || '';
+                    document.getElementById('vehicleDriver').value = vehicle['Tài xế'] || vehicle['Lái xe'] || '';
+                    document.getElementById('vehicleDriverPhone').value = vehicle['SĐT Tài xế'] || vehicle['SBT lái xe'] || '';
+                    document.getElementById('vehicleDepartureDate').value = formatDate(vehicle['Ngày xuất xe'] || vehicle['NgayXuat']) || '';
+                    document.getElementById('vehicleExpectedDate').value = vehicle['Ngày dự kiến'] || vehicle['NgayDuKien'] || '';
+                    // Tìm mã nhà cung cấp từ tên hoặc mã
+                    const supplierName = vehicle['Tên nhà cung cấp'] || vehicle['TenNhaCungCap'] || '';
+                    const supplierCode = vehicle['Mã nhà cung cấp'] || vehicle['MaNhaCungCap'] || vehicle['NCC'] || '';
+                    
+                    // Tìm mã từ tên nếu có
+                    const supplierMap = {
+                        'Xe lẻ': 'XELE',
+                        'Chiến 3 chân': 'CHIEN3C',
+                        'Dũng 3 chân': 'DUNG3C',
+                        'Viettel tàu 48h': 'VIETTEL48',
+                        'Song Trường Cont': 'SONGTR',
+                        'Tình 3 chân': 'TINH3C',
+                        'XE VIC': 'VIC',
+                        'BFY Tàu 72h': 'BFY72'
+                    };
+                    
+                    const foundCode = supplierCode || supplierMap[supplierName] || '';
+                    document.getElementById('vehicleSupplierCode').value = foundCode;
+                    document.getElementById('vehicleSupplierName').value = supplierName;
+                    document.getElementById('vehiclePaymentStatus').value = vehicle['Trạng thái thanh toán'] || vehicle['TrangThaiThanhToan'] || '';
+                    document.getElementById('vehicleStatus').value = vehicle['Trạng thái'] || vehicle['TrangThai'] || 'pending';
+                    document.getElementById('vehicleNote').value = vehicle['Ghi chú'] || vehicle['GhiChu'] || '';
+                    document.getElementById('vehicleAdditionalNote').value = vehicle['Ghi chú bổ sung'] || vehicle['GhiChuBoSung'] || '';
                 }
             } else {
                 title.textContent = 'Thêm Xe mới';
@@ -1080,12 +1251,130 @@
 
         function filterVehicles() {
             const searchTerm = document.getElementById('vehicleSearch').value.toLowerCase();
+            const filterDate = document.getElementById('filterVehicleDate').value;
+            const filterSupplier = document.getElementById('filterVehicleSupplier').value;
+            const filterStatus = document.getElementById('filterVehicleStatus').value;
             const rows = document.querySelectorAll('#vehicleTableBody tr');
             
             rows.forEach(row => {
                 const text = row.textContent.toLowerCase();
-                row.style.display = text.includes(searchTerm) ? '' : 'none';
+                const cells = row.querySelectorAll('td');
+                
+                // Kiểm tra tìm kiếm text
+                let matchesSearch = !searchTerm || text.includes(searchTerm);
+                
+                // Kiểm tra lọc theo ngày
+                let matchesDate = true;
+                if (filterDate && cells.length > 4) {
+                    const dateCell = cells[4].textContent.trim();
+                    const cellDate = formatDate(dateCell);
+                    matchesDate = cellDate === filterDate;
+                }
+                
+                // Kiểm tra lọc theo tên nhà cung cấp
+                let matchesSupplier = true;
+                if (filterSupplier) {
+                    // Lấy tên nhà cung cấp từ mã được chọn
+                    const supplierNameMap = {
+                        'XELE': 'Xe lẻ',
+                        'CHIEN3C': 'Chiến 3 chân',
+                        'DUNG3C': 'Dũng 3 chân',
+                        'VIETTEL48': 'Viettel tàu 48h',
+                        'SONGTR': 'Song Trường Cont',
+                        'TINH3C': 'Tình 3 chân',
+                        'VIC': 'XE VIC',
+                        'BFY72': 'BFY Tàu 72h'
+                    };
+                    
+                    const targetSupplierName = supplierNameMap[filterSupplier];
+                    if (!targetSupplierName) {
+                        matchesSupplier = true;
+                    } else {
+                        // Tìm xe có tên nhà cung cấp tương ứng
+                        // Lấy STT từ cột đầu tiên để tìm xe tương ứng
+                        const stt = parseInt(cells[0].textContent.trim());
+                        const vehicle = vehicles[stt - 1]; // STT bắt đầu từ 1, array bắt đầu từ 0
+                        
+                        // Kiểm tra trong dữ liệu xe trực tiếp
+                        let hasSupplier = false;
+                        if (vehicle) {
+                            console.log('Checking vehicle:', vehicle);
+                            console.log('Target supplier name:', targetSupplierName);
+                            
+                            // Kiểm tra các trường có thể chứa tên nhà cung cấp
+                            const vehicleSupplierFields = [
+                                vehicle['Tên nhà cung cấp'],
+                                vehicle['TenNhaCungCap'],
+                                vehicle['NCC'],
+                                vehicle['Mã nhà cung cấp'],
+                                vehicle['MaNhaCungCap']
+                            ];
+                            
+                            console.log('Vehicle supplier fields:', vehicleSupplierFields);
+                            
+                            hasSupplier = vehicleSupplierFields.some(field => {
+                                if (!field) return false;
+                                const fieldStr = String(field).toLowerCase();
+                                const matches = fieldStr.includes(targetSupplierName.toLowerCase()) || 
+                                              fieldStr === targetSupplierName.toLowerCase();
+                                console.log(`Field "${field}" matches "${targetSupplierName}": ${matches}`);
+                                return matches;
+                            });
+                            
+                            console.log('Has supplier in vehicle:', hasSupplier);
+                        }
+                        
+                        // Nếu không tìm thấy trong xe, tìm trong assignments và bills
+                        if (!hasSupplier && vehicle) {
+                            const vehicleAssignments = assignments.filter(a => a['Xe'] === vehicle.ID);
+                            hasSupplier = vehicleAssignments.some(a => {
+                                const bill = bills.find(b => b['Số Bill'] === a['Số Bill']);
+                                if (bill) {
+                                    const billSupplierFields = [
+                                        bill['NCC'],
+                                        bill['Mã khách gửi'],
+                                        bill['Mã nhà cung cấp'],
+                                        bill['MaNhaCungCap'],
+                                        bill['Tên khách gửi']
+                                    ];
+                                    return billSupplierFields.some(field => {
+                                        if (!field) return false;
+                                        const fieldStr = String(field).toLowerCase();
+                                        return fieldStr.includes(targetSupplierName.toLowerCase()) || 
+                                               fieldStr === targetSupplierName.toLowerCase();
+                                    });
+                                }
+                                return false;
+                            });
+                        }
+                        
+                        matchesSupplier = hasSupplier;
+                    }
+                }
+                
+                // Kiểm tra lọc theo trạng thái
+                let matchesStatus = true;
+                if (filterStatus && cells.length > 6) {
+                    const statusCell = cells[6].textContent.toLowerCase();
+                    const statusMap = {
+                        'pending': 'chờ xếp hàng',
+                        'in-transit': 'đang vận chuyển',
+                        'delivered': 'đã giao hàng'
+                    };
+                    matchesStatus = statusCell.includes(statusMap[filterStatus] || '');
+                }
+                
+                // Hiển thị nếu tất cả điều kiện đều thỏa mãn
+                row.style.display = (matchesSearch && matchesDate && matchesSupplier && matchesStatus) ? '' : 'none';
             });
+        }
+        
+        function clearVehicleFilters() {
+            document.getElementById('filterVehicleDate').value = '';
+            document.getElementById('filterVehicleSupplier').value = '';
+            document.getElementById('filterVehicleStatus').value = '';
+            document.getElementById('vehicleSearch').value = '';
+            filterVehicles();
         }
 
         // Local storage fallback (giống index.html)
@@ -1128,7 +1417,12 @@
                 'NgayXuat': document.getElementById('vehicleDepartureDate').value,
                 'NgayDuKien': document.getElementById('vehicleExpectedDate').value,
                 'TrangThai': document.getElementById('vehicleStatus').value,
-                'GhiChu': document.getElementById('vehicleNote')?.value || ''
+                'GhiChu': document.getElementById('vehicleNote')?.value || '',
+                'Mã nhà cung cấp': document.getElementById('vehicleSupplierCode').value,
+                'Tên nhà cung cấp': document.getElementById('vehicleSupplierName').value,
+                'NCC': document.getElementById('vehicleSupplierCode').value,
+                'Trạng thái thanh toán': document.getElementById('vehiclePaymentStatus').value,
+                'Ghi chú bổ sung': document.getElementById('vehicleAdditionalNote').value
             };
             
             // Cập nhật local data trước
