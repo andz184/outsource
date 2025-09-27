@@ -232,6 +232,7 @@
                 <button class="btn" onclick="sortBillsBySTT()" style="background: #f39c12; color: white;">Sắp xếp theo STT</button>
                 <button class="btn" onclick="exportAssignmentsToPDF()" style="background: #e74c3c; color: white;">In PDF</button>
                 <button class="btn" onclick="debugBills()" style="background: #9b59b6; color: white;">Debug Bills</button>
+                <button class="btn" onclick="testSTTUpdate()" style="background: #e67e22; color: white;">Test STT Update</button>
             </div>
             
             <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
@@ -847,7 +848,8 @@
                                min="1" 
                                style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;"
                                onchange="updateBillSTT('${bill['Số Bill']}', this.value)"
-                               onblur="updateBillSTT('${bill['Số Bill']}', this.value)">
+                               onblur="updateBillSTT('${bill['Số Bill']}', this.value)"
+                               oninput="updateBillSTT('${bill['Số Bill']}', this.value)">
                     </td>
                     <td>${bill['Số Bill'] || ''}</td>
                     <td>${formatDate(bill['Ngày bốc']) || ''}</td>
@@ -1250,21 +1252,32 @@
         }
 
         function updateBillSTT(billNumber, newSTT) {
+            console.log(`=== UPDATE BILL STT ===`);
+            console.log(`Bill Number: "${billNumber}"`);
+            console.log(`New STT: "${newSTT}"`);
+            console.log(`Current bills count: ${bills.length}`);
+            
             const bill = bills.find(b => b['Số Bill'] === billNumber);
+            console.log(`Found bill:`, bill);
+            
             if (bill) {
+                const oldSTT = bill['STT'];
                 bill['STT'] = parseInt(newSTT) || 1;
+                console.log(`STT changed from ${oldSTT} to ${bill['STT']}`);
                 
                 // Cập nhật local storage
                 upsertLocalBill(bill);
+                console.log('Updated local storage');
                 
-                // Cập nhật vào Google Sheet
+                // Cập nhật vào Google Sheet (không cần render lại table)
                 updateBillSTTInSheet(bill);
                 
-                // Tự động sắp xếp lại table
-                renderAssignmentTable();
-                
-                console.log(`Updated bill ${billNumber} STT to ${newSTT}`);
+                console.log(`Successfully updated bill ${billNumber} STT to ${newSTT}`);
+            } else {
+                console.error(`Bill not found: ${billNumber}`);
+                console.log('Available bills:', bills.map(b => b['Số Bill']));
             }
+            console.log(`=== END UPDATE BILL STT ===`);
         }
 
         async function updateBillSTTInSheet(bill) {
@@ -1497,6 +1510,20 @@
             console.log('Bills trong localStorage:', localBills.length);
             
             console.log('=== END DEBUG ===');
+        }
+
+        // Function để test cập nhật STT thủ công
+        function testSTTUpdate() {
+            console.log('=== TEST STT UPDATE ===');
+            if (bills.length > 0) {
+                const firstBill = bills[0];
+                console.log('Testing with first bill:', firstBill);
+                updateBillSTT(firstBill['Số Bill'], 999);
+                alert('Đã test cập nhật STT cho bill đầu tiên thành 999. Kiểm tra console để xem kết quả.');
+            } else {
+                alert('Không có bills để test!');
+            }
+            console.log('=== END TEST STT UPDATE ===');
         }
 
         function readLocalBills() {
