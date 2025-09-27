@@ -231,6 +231,7 @@
                 <button class="btn btn-success" onclick="showAssignmentModal()">Phân phối Đơn hàng</button>
                 <button class="btn" onclick="sortBillsBySTT()" style="background: #f39c12; color: white;">Sắp xếp theo STT</button>
                 <button class="btn" onclick="exportAssignmentsToPDF()" style="background: #e74c3c; color: white;">In PDF</button>
+                <button class="btn" onclick="debugBills()" style="background: #9b59b6; color: white;">Debug Bills</button>
             </div>
             
             <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
@@ -1129,34 +1130,59 @@
             }
         }
 
-        function sortBillsBySTT() {
-            // Sắp xếp bills theo STT
-            bills.sort((a, b) => {
-                const sttA = parseInt(a['STT']) || 0;
-                const sttB = parseInt(b['STT']) || 0;
-                return sttA - sttB;
-            });
-            
-            // Cập nhật lại STT liên tiếp
-            bills.forEach((bill, index) => {
-                bill['STT'] = index + 1;
-                upsertLocalBill(bill);
-            });
-            
-            // Cập nhật tất cả STT vào sheet
-            updateAllSTTInSheet();
-            
-            // Render lại table
-            renderAssignmentTable();
-            
-            alert('Đã sắp xếp và cập nhật STT thành công!');
+        async function sortBillsBySTT() {
+            try {
+                console.log('Bắt đầu sắp xếp STT...');
+                console.log('Tổng số bills trước khi sắp xếp:', bills.length);
+                
+                // Sắp xếp bills theo STT
+                bills.sort((a, b) => {
+                    const sttA = parseInt(a['STT']) || 0;
+                    const sttB = parseInt(b['STT']) || 0;
+                    return sttA - sttB;
+                });
+                
+                // Cập nhật lại STT liên tiếp
+                bills.forEach((bill, index) => {
+                    bill['STT'] = index + 1;
+                    upsertLocalBill(bill);
+                });
+                
+                console.log('Đã cập nhật STT local, đang gửi lên Google Sheet...');
+                console.log('Bills sau khi sắp xếp:', bills.map(b => ({ 'Số Bill': b['Số Bill'], 'STT': b['STT'] })));
+                
+                // Cập nhật tất cả STT vào sheet
+                const result = await updateAllSTTInSheet();
+                
+                // Render lại table
+                renderAssignmentTable();
+                
+                if (result && result.success) {
+                    alert(`Đã sắp xếp và cập nhật STT thành công!\nCập nhật: ${result.updated}/${bills.length} items`);
+                } else {
+                    alert(`Đã sắp xếp thành công và lưu tạm trên trình duyệt.\nCập nhật Sheet: ${result ? result.updated : 0}/${bills.length} items\n\nVui lòng kiểm tra kết nối API.`);
+                }
+                
+            } catch (error) {
+                console.error('Error in sortBillsBySTT:', error);
+                alert('Lỗi khi sắp xếp STT: ' + error.message);
+            }
         }
 
         async function updateAllSTTInSheet() {
             try {
+                console.log('Đang cập nhật STT lên Google Sheet...');
+                console.log('SHEET_ID:', SHEET_ID);
+                console.log('BILL_SHEET:', BILL_SHEET);
+                console.log('Bills to update:', bills.length);
+                console.log('Bills data:', bills.map(b => ({ 'Số Bill': b['Số Bill'], 'STT': b['STT'] })));
+                
                 const response = await fetch('/api/report', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
                     body: JSON.stringify({
                         action: 'updateAllSTT',
                         sheetId: SHEET_ID,
@@ -1165,14 +1191,44 @@
                     })
                 });
                 
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                
                 if (!response.ok) {
-                    throw new Error('Lỗi cập nhật STT vào sheet');
+                    const errorText = await response.text();
+                    console.error('API Error Response:', errorText);
+                    throw new Error(`Lỗi API: ${response.status} - ${errorText}`);
                 }
                 
-                console.log('All STT updated in sheet successfully');
+                const result = await response.json();
+                console.log('API Success Response:', result);
+                
+                if (result.ok) {
+                    console.log('All STT updated in sheet successfully');
+                    return {
+                        success: true,
+                        updated: result.updated || bills.length,
+                        total: bills.length,
+                        message: result.message || 'Cập nhật thành công'
+                    };
+                } else {
+                    throw new Error(result.error || 'Lỗi không xác định từ API');
+                }
+                
             } catch (error) {
                 console.error('Error updating all STT in sheet:', error);
-                alert('Đã sắp xếp thành công nhưng chưa cập nhật vào Sheet. Lỗi: ' + error.message);
+                
+                // Fallback: Lưu vào localStorage
+                bills.forEach(bill => {
+                    upsertLocalBill(bill);
+                });
+                
+                return {
+                    success: false,
+                    updated: 0,
+                    total: bills.length,
+                    error: error.message
+                };
             }
         }
 
@@ -1181,6 +1237,36 @@
             const idx = arr.findIndex(x => String(x['Số Bill']).toLowerCase() === String(bill['Số Bill']).toLowerCase());
             if (idx >= 0) arr[idx] = bill; else arr.push(bill);
             writeLocalBills(arr);
+        }
+
+        // Function để debug và kiểm tra bills
+        function debugBills() {
+            console.log('=== DEBUG BILLS ===');
+            console.log('Tổng số bills:', bills.length);
+            console.log('Bills details:');
+            bills.forEach((bill, index) => {
+                console.log(`${index + 1}. Số Bill: "${bill['Số Bill']}", STT: ${bill['STT']}`);
+            });
+            
+            // Kiểm tra bills có STT trùng lặp
+            const sttCounts = {};
+            bills.forEach(bill => {
+                const stt = bill['STT'];
+                sttCounts[stt] = (sttCounts[stt] || 0) + 1;
+            });
+            
+            const duplicates = Object.entries(sttCounts).filter(([stt, count]) => count > 1);
+            if (duplicates.length > 0) {
+                console.warn('STT trùng lặp:', duplicates);
+            }
+            
+            // Kiểm tra bills có Số Bill trống
+            const emptyBills = bills.filter(bill => !bill['Số Bill'] || bill['Số Bill'].trim() === '');
+            if (emptyBills.length > 0) {
+                console.warn('Bills có Số Bill trống:', emptyBills.length);
+            }
+            
+            console.log('=== END DEBUG ===');
         }
 
         function readLocalBills() {
@@ -1332,11 +1418,11 @@
                         doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                         heightLeft -= pageHeight;
                     }
-                    
-                    // Lưu file
-                    const fileName = `Bao_cao_don_hang_${new Date().toISOString().split('T')[0]}.pdf`;
-                    doc.save(fileName);
-                    
+                
+                // Lưu file
+                const fileName = `Bao_cao_don_hang_${new Date().toISOString().split('T')[0]}.pdf`;
+                doc.save(fileName);
+                
                     // Xóa div tạm
                     document.body.removeChild(printDiv);
                     
