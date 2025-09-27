@@ -1320,9 +1320,18 @@
             renderAssignmentTable();
             
                 if (result && result.success) {
-                    alert(`Đã sắp xếp và cập nhật STT thành công!\nCập nhật: ${result.updated}/${bills.length} items`);
+                    const message = `Đã sắp xếp và cập nhật STT thành công!\n` +
+                                  `Cập nhật: ${result.updated}/${result.total} items\n` +
+                                  `Bills hợp lệ: ${result.valid}/${result.total}\n` +
+                                  `Bills lỗi: ${result.invalid}/${result.total}`;
+                    alert(message);
                 } else {
-                    alert(`Đã sắp xếp thành công và lưu tạm trên trình duyệt.\nCập nhật Sheet: ${result ? result.updated : 0}/${bills.length} items\n\nVui lòng kiểm tra kết nối API.`);
+                    const message = `Đã sắp xếp thành công và lưu tạm trên trình duyệt.\n` +
+                                  `Cập nhật Sheet: ${result ? result.updated : 0}/${bills.length} items\n` +
+                                  `Bills hợp lệ: ${result ? result.valid : 0}/${bills.length}\n` +
+                                  `Bills lỗi: ${result ? result.invalid : bills.length}/${bills.length}\n\n` +
+                                  `Vui lòng kiểm tra kết nối API.`;
+                    alert(message);
                 }
                 
             } catch (error) {
@@ -1337,7 +1346,26 @@
                 console.log('SHEET_ID:', SHEET_ID);
                 console.log('BILL_SHEET:', BILL_SHEET);
                 console.log('Bills to update:', bills.length);
-                console.log('Bills data:', bills.map(b => ({ 'Số Bill': b['Số Bill'], 'STT': b['STT'] })));
+                
+                // Lọc ra các bills hợp lệ
+                const validBills = bills.filter(bill => {
+                    try {
+                        const soBill = bill['Số Bill'];
+                        return soBill && 
+                               (typeof soBill === 'string' || typeof soBill === 'number') &&
+                               (typeof soBill !== 'string' || soBill.trim() !== '');
+                    } catch (error) {
+                        console.warn('Bill không hợp lệ:', bill, error);
+                        return false;
+                    }
+                });
+                
+                console.log(`Bills hợp lệ: ${validBills.length}/${bills.length}`);
+                console.log('Valid bills data:', validBills.map(b => ({ 'Số Bill': b['Số Bill'], 'STT': b['STT'] })));
+                
+                if (validBills.length === 0) {
+                    throw new Error('Không có bills hợp lệ để cập nhật');
+                }
                 
                 const response = await fetch('/api/report', {
                     method: 'POST',
@@ -1349,7 +1377,7 @@
                         action: 'updateAllSTT',
                         sheetId: SHEET_ID,
                         sheetName: BILL_SHEET,
-                        bills: bills
+                        bills: validBills
                     })
                 });
                 
@@ -1366,11 +1394,13 @@
                 console.log('API Success Response:', result);
                 
                 if (result.ok) {
-                console.log('All STT updated in sheet successfully');
+                    console.log('All STT updated in sheet successfully');
                     return {
                         success: true,
-                        updated: result.updated || bills.length,
+                        updated: result.updated || validBills.length,
                         total: bills.length,
+                        valid: validBills.length,
+                        invalid: bills.length - validBills.length,
                         message: result.message || 'Cập nhật thành công'
                     };
                 } else {
@@ -1406,15 +1436,38 @@
             console.log('=== DEBUG BILLS ===');
             console.log('Tổng số bills:', bills.length);
             console.log('Bills details:');
+            
+            let validBills = 0;
+            let invalidBills = 0;
+            
             bills.forEach((bill, index) => {
-                console.log(`${index + 1}. Số Bill: "${bill['Số Bill']}", STT: ${bill['STT']}`);
+                try {
+                    const soBill = bill['Số Bill'];
+                    const stt = bill['STT'];
+                    
+                    // Kiểm tra Số Bill có hợp lệ không
+                    if (!soBill || (typeof soBill !== 'string' && typeof soBill !== 'number')) {
+                        console.error(`${index + 1}. BILL KHÔNG HỢP LỆ - Số Bill: "${soBill}", STT: ${stt} (Type: ${typeof soBill})`);
+                        invalidBills++;
+                    } else {
+                        console.log(`${index + 1}. Số Bill: "${soBill}", STT: ${stt}`);
+                        validBills++;
+                    }
+                } catch (error) {
+                    console.error(`${index + 1}. LỖI KHI XỬ LÝ BILL:`, error, bill);
+                    invalidBills++;
+                }
             });
+            
+            console.log(`Tổng kết: ${validBills} bills hợp lệ, ${invalidBills} bills lỗi`);
             
             // Kiểm tra bills có STT trùng lặp
             const sttCounts = {};
             bills.forEach(bill => {
                 const stt = bill['STT'];
-                sttCounts[stt] = (sttCounts[stt] || 0) + 1;
+                if (stt !== undefined && stt !== null) {
+                    sttCounts[stt] = (sttCounts[stt] || 0) + 1;
+                }
             });
             
             const duplicates = Object.entries(sttCounts).filter(([stt, count]) => count > 1);
@@ -1422,11 +1475,26 @@
                 console.warn('STT trùng lặp:', duplicates);
             }
             
-            // Kiểm tra bills có Số Bill trống
-            const emptyBills = bills.filter(bill => !bill['Số Bill'] || bill['Số Bill'].trim() === '');
+            // Kiểm tra bills có Số Bill trống hoặc không hợp lệ
+            const emptyBills = bills.filter(bill => {
+                try {
+                    const soBill = bill['Số Bill'];
+                    return !soBill || 
+                           (typeof soBill === 'string' && soBill.trim() === '') ||
+                           (typeof soBill !== 'string' && typeof soBill !== 'number');
+                } catch (error) {
+                    return true; // Nếu có lỗi thì coi như trống
+                }
+            });
+            
             if (emptyBills.length > 0) {
-                console.warn('Bills có Số Bill trống:', emptyBills.length);
+                console.warn('Bills có Số Bill trống hoặc không hợp lệ:', emptyBills.length);
+                console.warn('Chi tiết bills lỗi:', emptyBills);
             }
+            
+            // Kiểm tra localStorage
+            const localBills = readLocalBills();
+            console.log('Bills trong localStorage:', localBills.length);
             
             console.log('=== END DEBUG ===');
         }
