@@ -231,7 +231,6 @@
                 <button class="btn btn-success" onclick="showAssignmentModal()">Phân phối Đơn hàng</button>
                 <button class="btn" onclick="sortBillsBySTT()" style="background: #f39c12; color: white;">Sắp xếp theo STT tùy chỉnh</button>
                 <button class="btn" onclick="exportAssignmentsToPDF()" style="background: #e74c3c; color: white;">In PDF</button>
-                <button class="btn" onclick="debugBills()" style="background: #9b59b6; color: white;">Debug Bills</button>
             </div>
             
             <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
@@ -636,6 +635,16 @@
                     }
                 });
                 
+                // Sắp xếp bills sau khi merge local data
+                if (bills.length > 0) {
+                    bills.sort((a, b) => {
+                        const sttA = parseInt(a['STT']) || 0;
+                        const sttB = parseInt(b['STT']) || 0;
+                        return sttA - sttB;
+                    });
+                    console.log('Đã tự động sắp xếp bills sau khi merge local data');
+                }
+                
                 renderAllTables();
             } catch (error) {
                 console.error('Error loading data:', error);
@@ -737,6 +746,16 @@
                 });
             }
             console.log('Total bills loaded:', bills.length); // Debug log
+            
+            // Tự động sắp xếp bills theo STT sau khi load
+            if (bills.length > 0) {
+                bills.sort((a, b) => {
+                    const sttA = parseInt(a['STT']) || 0;
+                    const sttB = parseInt(b['STT']) || 0;
+                    return sttA - sttB;
+                });
+                console.log('Đã tự động sắp xếp bills theo STT sau khi load từ Google Sheet');
+            }
         }
 
         async function loadAssignments() {
@@ -780,6 +799,16 @@
         }
 
         function renderAllTables() {
+            // Tự động sắp xếp bills theo STT khi load
+            if (bills.length > 0) {
+                bills.sort((a, b) => {
+                    const sttA = parseInt(a['STT']) || 0;
+                    const sttB = parseInt(b['STT']) || 0;
+                    return sttA - sttB;
+                });
+                console.log('Đã tự động sắp xếp bills theo STT khi load');
+            }
+            
             renderVehicleTable();
             renderAssignmentTable();
             loadVehicleStatus();
