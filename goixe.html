@@ -229,10 +229,9 @@
         <div id="assignments" class="tab-content">
             <div class="form-group">
                 <button class="btn btn-success" onclick="showAssignmentModal()">Phân phối Đơn hàng</button>
-                <button class="btn" onclick="sortBillsBySTT()" style="background: #f39c12; color: white;">Sắp xếp theo STT</button>
+                <button class="btn" onclick="sortBillsBySTT()" style="background: #f39c12; color: white;">Sắp xếp theo STT tùy chỉnh</button>
                 <button class="btn" onclick="exportAssignmentsToPDF()" style="background: #e74c3c; color: white;">In PDF</button>
                 <button class="btn" onclick="debugBills()" style="background: #9b59b6; color: white;">Debug Bills</button>
-                <button class="btn" onclick="testSTTUpdate()" style="background: #e67e22; color: white;">Test STT Update</button>
             </div>
             
             <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
@@ -370,7 +369,7 @@
                 
                 <!-- Thông tin Bill cơ bản -->
                 <div class="form-row">
-                    <div class="form-group">
+                <div class="form-group">
                         <label>Số Bill:</label>
                         <input type="text" id="assignmentBillNumber" required>
                     </div>
@@ -848,8 +847,7 @@
                                min="1" 
                                style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;"
                                onchange="updateBillSTT('${bill['Số Bill']}', this.value)"
-                               onblur="updateBillSTT('${bill['Số Bill']}', this.value)"
-                               oninput="updateBillSTT('${bill['Số Bill']}', this.value)">
+                               onblur="updateBillSTT('${bill['Số Bill']}', this.value)">
                     </td>
                     <td>${bill['Số Bill'] || ''}</td>
                     <td>${formatDate(bill['Ngày bốc']) || ''}</td>
@@ -1310,41 +1308,44 @@
                 console.log('Bắt đầu sắp xếp STT...');
                 console.log('Tổng số bills trước khi sắp xếp:', bills.length);
                 
-            // Sắp xếp bills theo STT
-            bills.sort((a, b) => {
-                const sttA = parseInt(a['STT']) || 0;
-                const sttB = parseInt(b['STT']) || 0;
-                return sttA - sttB;
-            });
-            
-            // Cập nhật lại STT liên tiếp
-            bills.forEach((bill, index) => {
-                bill['STT'] = index + 1;
-                upsertLocalBill(bill);
-            });
+                // Lấy STT từ input fields trong UI
+                const inputFields = document.querySelectorAll('#assignmentTableBody input[type="number"]');
+                console.log('Found input fields:', inputFields.length);
+                
+                // Cập nhật STT từ input fields vào bills array
+                bills.forEach((bill, index) => {
+                    if (inputFields[index]) {
+                        const newSTT = parseInt(inputFields[index].value) || (index + 1);
+                        bill['STT'] = newSTT;
+                        console.log(`Bill ${bill['Số Bill']}: STT từ input = ${newSTT}`);
+                    }
+                });
+                
+                // Sắp xếp bills theo STT từ input fields (giữ nguyên STT người dùng chỉnh)
+                bills.sort((a, b) => {
+                    const sttA = parseInt(a['STT']) || 0;
+                    const sttB = parseInt(b['STT']) || 0;
+                    return sttA - sttB;
+                });
+                
+                // Lưu STT đã sắp xếp vào local storage (không thay đổi STT)
+                bills.forEach((bill) => {
+                    upsertLocalBill(bill);
+                });
                 
                 console.log('Đã cập nhật STT local, đang gửi lên Google Sheet...');
                 console.log('Bills sau khi sắp xếp:', bills.map(b => ({ 'Số Bill': b['Số Bill'], 'STT': b['STT'] })));
-            
-            // Cập nhật tất cả STT vào sheet
+                
+                // Cập nhật tất cả STT vào sheet
                 const result = await updateAllSTTInSheet();
-            
-            // Render lại table
-            renderAssignmentTable();
-            
+                
+                // Render lại table
+                renderAssignmentTable();
+                
                 if (result && result.success) {
-                    const message = `Đã sắp xếp và cập nhật STT thành công!\n` +
-                                  `Cập nhật: ${result.updated}/${result.total} items\n` +
-                                  `Bills hợp lệ: ${result.valid}/${result.total}\n` +
-                                  `Bills lỗi: ${result.invalid}/${result.total}`;
-                    alert(message);
+                    alert(`Đã sắp xếp theo STT tùy chỉnh thành công!\nCập nhật: ${result.updated}/${bills.length} items\n\nThứ tự hiện tại: ${bills.map(b => b['STT']).join(', ')}`);
                 } else {
-                    const message = `Đã sắp xếp thành công và lưu tạm trên trình duyệt.\n` +
-                                  `Cập nhật Sheet: ${result ? result.updated : 0}/${bills.length} items\n` +
-                                  `Bills hợp lệ: ${result ? result.valid : 0}/${bills.length}\n` +
-                                  `Bills lỗi: ${result ? result.invalid : bills.length}/${bills.length}\n\n` +
-                                  `Vui lòng kiểm tra kết nối API.`;
-                    alert(message);
+                    alert(`Đã sắp xếp theo STT tùy chỉnh và lưu tạm trên trình duyệt.\nCập nhật Sheet: ${result ? result.updated : 0}/${bills.length} items\n\nThứ tự hiện tại: ${bills.map(b => b['STT']).join(', ')}\n\nVui lòng kiểm tra kết nối API.`);
                 }
                 
             } catch (error) {
@@ -1359,26 +1360,7 @@
                 console.log('SHEET_ID:', SHEET_ID);
                 console.log('BILL_SHEET:', BILL_SHEET);
                 console.log('Bills to update:', bills.length);
-                
-                // Lọc ra các bills hợp lệ
-                const validBills = bills.filter(bill => {
-                    try {
-                        const soBill = bill['Số Bill'];
-                        return soBill && 
-                               (typeof soBill === 'string' || typeof soBill === 'number') &&
-                               (typeof soBill !== 'string' || soBill.trim() !== '');
-                    } catch (error) {
-                        console.warn('Bill không hợp lệ:', bill, error);
-                        return false;
-                    }
-                });
-                
-                console.log(`Bills hợp lệ: ${validBills.length}/${bills.length}`);
-                console.log('Valid bills data:', validBills.map(b => ({ 'Số Bill': b['Số Bill'], 'STT': b['STT'] })));
-                
-                if (validBills.length === 0) {
-                    throw new Error('Không có bills hợp lệ để cập nhật');
-                }
+                console.log('Bills data:', bills.map(b => ({ 'Số Bill': b['Số Bill'], 'STT': b['STT'] })));
                 
                 const response = await fetch('/api/report', {
                     method: 'POST',
@@ -1390,7 +1372,7 @@
                         action: 'updateAllSTT',
                         sheetId: SHEET_ID,
                         sheetName: BILL_SHEET,
-                        bills: validBills
+                        bills: bills
                     })
                 });
                 
@@ -1407,13 +1389,11 @@
                 console.log('API Success Response:', result);
                 
                 if (result.ok) {
-                    console.log('All STT updated in sheet successfully');
+                console.log('All STT updated in sheet successfully');
                     return {
                         success: true,
-                        updated: result.updated || validBills.length,
+                        updated: result.updated || bills.length,
                         total: bills.length,
-                        valid: validBills.length,
-                        invalid: bills.length - validBills.length,
                         message: result.message || 'Cập nhật thành công'
                     };
                 } else {
@@ -1449,38 +1429,15 @@
             console.log('=== DEBUG BILLS ===');
             console.log('Tổng số bills:', bills.length);
             console.log('Bills details:');
-            
-            let validBills = 0;
-            let invalidBills = 0;
-            
             bills.forEach((bill, index) => {
-                try {
-                    const soBill = bill['Số Bill'];
-                    const stt = bill['STT'];
-                    
-                    // Kiểm tra Số Bill có hợp lệ không
-                    if (!soBill || (typeof soBill !== 'string' && typeof soBill !== 'number')) {
-                        console.error(`${index + 1}. BILL KHÔNG HỢP LỆ - Số Bill: "${soBill}", STT: ${stt} (Type: ${typeof soBill})`);
-                        invalidBills++;
-                    } else {
-                        console.log(`${index + 1}. Số Bill: "${soBill}", STT: ${stt}`);
-                        validBills++;
-                    }
-                } catch (error) {
-                    console.error(`${index + 1}. LỖI KHI XỬ LÝ BILL:`, error, bill);
-                    invalidBills++;
-                }
+                console.log(`${index + 1}. Số Bill: "${bill['Số Bill']}", STT: ${bill['STT']}`);
             });
-            
-            console.log(`Tổng kết: ${validBills} bills hợp lệ, ${invalidBills} bills lỗi`);
             
             // Kiểm tra bills có STT trùng lặp
             const sttCounts = {};
             bills.forEach(bill => {
                 const stt = bill['STT'];
-                if (stt !== undefined && stt !== null) {
-                    sttCounts[stt] = (sttCounts[stt] || 0) + 1;
-                }
+                sttCounts[stt] = (sttCounts[stt] || 0) + 1;
             });
             
             const duplicates = Object.entries(sttCounts).filter(([stt, count]) => count > 1);
@@ -1488,42 +1445,19 @@
                 console.warn('STT trùng lặp:', duplicates);
             }
             
-            // Kiểm tra bills có Số Bill trống hoặc không hợp lệ
+            // Kiểm tra bills có Số Bill trống
             const emptyBills = bills.filter(bill => {
-                try {
-                    const soBill = bill['Số Bill'];
-                    return !soBill || 
-                           (typeof soBill === 'string' && soBill.trim() === '') ||
-                           (typeof soBill !== 'string' && typeof soBill !== 'number');
-                } catch (error) {
-                    return true; // Nếu có lỗi thì coi như trống
-                }
+                const soBill = bill['Số Bill'];
+                return !soBill || 
+                       (typeof soBill === 'string' && soBill.trim() === '') ||
+                       (typeof soBill !== 'string' && typeof soBill !== 'number');
             });
-            
             if (emptyBills.length > 0) {
                 console.warn('Bills có Số Bill trống hoặc không hợp lệ:', emptyBills.length);
                 console.warn('Chi tiết bills lỗi:', emptyBills);
             }
             
-            // Kiểm tra localStorage
-            const localBills = readLocalBills();
-            console.log('Bills trong localStorage:', localBills.length);
-            
             console.log('=== END DEBUG ===');
-        }
-
-        // Function để test cập nhật STT thủ công
-        function testSTTUpdate() {
-            console.log('=== TEST STT UPDATE ===');
-            if (bills.length > 0) {
-                const firstBill = bills[0];
-                console.log('Testing with first bill:', firstBill);
-                updateBillSTT(firstBill['Số Bill'], 999);
-                alert('Đã test cập nhật STT cho bill đầu tiên thành 999. Kiểm tra console để xem kết quả.');
-            } else {
-                alert('Không có bills để test!');
-            }
-            console.log('=== END TEST STT UPDATE ===');
         }
 
         function readLocalBills() {
