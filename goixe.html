@@ -3,10 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <title>Quản lý Xe và Đơn hàng</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Segoe UI', 'Arial Unicode MS', 'Arial', 'Tahoma', sans-serif;
             margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
@@ -224,16 +229,40 @@
         <div id="assignments" class="tab-content">
             <div class="form-group">
                 <button class="btn btn-success" onclick="showAssignmentModal()">Phân phối Đơn hàng</button>
+                <button class="btn" onclick="sortBillsBySTT()" style="background: #f39c12; color: white;">Sắp xếp theo STT</button>
+                <button class="btn" onclick="exportAssignmentsToPDF()" style="background: #e74c3c; color: white;">In PDF</button>
             </div>
             
+            <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
             <table class="table" id="assignmentTable">
                 <thead>
                     <tr>
-                        <th>ID Phân phối</th>
-                        <th>ID Xe</th>
-                        <th>ID Đơn hàng</th>
-                        <th>Số thứ tự</th>
-                        <th>Số lượng hàng</th>
+                            <th>STT</th>
+                            <th>Số Bill</th>
+                            <th>Ngày bốc</th>
+                            <th>Mã khách gửi</th>
+                            <th>Tên khách gửi</th>
+                            <th>Xã</th>
+                            <th>Địa chỉ</th>
+                            <th>Địa chỉ đã lưu</th>
+                            <th>Tên khách nhận</th>
+                            <th>Địa chỉ nhận</th>
+                            <th>Tỉnh nhận</th>
+                            <th>Xã nhận</th>
+                            <th>SĐT khách nhận</th>
+                            <th>Dịch vụ GTGT</th>
+                            <th>Nội dung hàng hóa</th>
+                            <th>Số kiện</th>
+                            <th>Trọng lượng thực</th>
+                            <th>Thể tích</th>
+                            <th>Đơn vị tính cước</th>
+                            <th>Đơn giá</th>
+                            <th>Phụ phí</th>
+                            <th>VAT</th>
+                            <th>Thành tiền</th>
+                            <th>Người thanh toán</th>
+                            <th>COD</th>
+                            <th>Trạng thái thanh toán</th>
                         <th>Ghi chú</th>
                         <th>Thao tác</th>
                     </tr>
@@ -241,6 +270,7 @@
                 <tbody id="assignmentTableBody">
                 </tbody>
             </table>
+            </div>
         </div>
 
         <!-- Tab 3: Trạng thái Xe -->
@@ -434,6 +464,7 @@
                 // Load local changes và merge vào data
                 const localVehicles = readLocalVehicles();
                 const localAssignments = readLocalAssignments();
+                const localBills = readLocalBills();
                 
                 // Merge local vehicles
                 localVehicles.forEach(localVehicle => {
@@ -452,6 +483,16 @@
                         assignments[existingIndex] = localAssignment;
                     } else {
                         assignments.push(localAssignment);
+                    }
+                });
+
+                // Merge local bills
+                localBills.forEach(localBill => {
+                    const existingIndex = bills.findIndex(b => String(b['Số Bill']).toLowerCase() === String(localBill['Số Bill']).toLowerCase());
+                    if (existingIndex >= 0) {
+                        bills[existingIndex] = localBill;
+                    } else {
+                        bills.push(localBill);
                     }
                 });
                 
@@ -509,15 +550,53 @@
             bills = [];
             if (json.table && json.table.rows) {
                 const headers = json.table.cols.map(c => c.label || '');
+                console.log('Bill headers found:', headers); // Debug log
+                
                 json.table.rows.forEach((row, index) => {
                     if (index === 0) return; // Skip header
-                    const bill = {};
+                    const raw = {};
                     row.c.forEach((cell, i) => {
-                        bill[headers[i]] = cell ? cell.v : '';
+                        raw[headers[i]] = cell ? cell.v : '';
                     });
-                    if (bill.ID) bills.push(bill);
+                    
+                    // Map tất cả các trường từ sheet Bill
+                    const bill = {
+                        'STT': raw['STT'] || raw['stt'] || (index),
+                        'Số Bill': raw['Số Bill'] || raw['So Bill'] || raw['Số bill'],
+                        'Ngày bốc': raw['Ngày bốc'] || raw['Ngay boc'],
+                        'Mã khách gửi': raw['Mã khách gửi'] || raw['Ma khach gui'],
+                        'Tên khách gửi': raw['Tên khách gửi'] || raw['Ten khach gui'],
+                        'Xã': raw['Xã'] || raw['Xa'],
+                        'Địa chỉ': raw['Địa chỉ'] || raw['Dia chi'],
+                        'Địa chỉ đã lưu': raw['Địa chỉ đã lưu'] || raw['Dia chi da luu'],
+                        'Tên khách nhận': raw['Tên khách nhận'] || raw['Ten khach nhan'],
+                        'Địa chỉ nhận': raw['Địa chỉ nhận'] || raw['Dia chi nhan'],
+                        'Tỉnh nhận': raw['Tỉnh nhận'] || raw['Tinh nhan'],
+                        'Xã nhận': raw['Xã nhận'] || raw['Xa nhan'],
+                        'SĐT khách nhận': raw['SĐT khách nhận'] || raw['SDT khach nhan'],
+                        'Dịch vụ GTGT': raw['Dịch vụ GTGT'] || raw['Dich vu GTGT'],
+                        'Nội dung hàng hóa': raw['Nội dung hàng hóa'] || raw['Noi dung hang hoa'],
+                        'Số kiện': raw['Số kiện'] || raw['So kien'],
+                        'Trọng lượng thực': raw['Trọng lượng thực'] || raw['Trong luong thuc'],
+                        'Thể tích': raw['Thể tích'] || raw['The tich'],
+                        'Đơn vị tính cước': raw['Đơn vị tính cước'] || raw['Don vi tinh cuoc'],
+                        'Đơn giá': raw['Đơn giá'] || raw['Don gia'],
+                        'Phụ phí': raw['Phụ phí'] || raw['Phu phi'],
+                        'VAT': raw['VAT'] || raw['vat'],
+                        'Thành tiền': raw['Thành tiền'] || raw['Thanh tien'],
+                        'Người thanh toán': raw['Người thanh toán'] || raw['Nguoi thanh toan'],
+                        'COD': raw['COD'] || raw['cod'],
+                        'Trạng thái thanh toán': raw['Trạng thái thanh toán'] || raw['Trang thai thanh toan'],
+                        'Ghi chú': raw['Ghi chú'] || raw['Ghi chu']
+                    };
+                    
+                    if (bill['Số Bill']) {
+                        bills.push(bill);
+                        console.log('Loaded bill:', bill); // Debug log
+                    }
                 });
             }
+            console.log('Total bills loaded:', bills.length); // Debug log
         }
 
         async function loadAssignments() {
@@ -567,6 +646,30 @@
             loadUnassignedOrders();
         }
 
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            try {
+                // Xử lý định dạng Date(YYYY,M,D)
+                if (typeof dateString === 'string' && dateString.startsWith('Date(')) {
+                    const match = dateString.match(/Date\((\d+),(\d+),(\d+)\)/);
+                    if (match) {
+                        const year = parseInt(match[1]);
+                        const month = parseInt(match[2]) + 1; // Month is 0-indexed in Date()
+                        const day = parseInt(match[3]);
+                        const date = new Date(year, month - 1, day);
+                        return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+                    }
+                }
+                
+                // Xử lý định dạng thông thường
+                const date = new Date(dateString);
+                if (isNaN(date.getTime())) return dateString;
+                return date.toISOString().split('T')[0]; // YYYY-MM-DD format
+            } catch (error) {
+                return dateString;
+            }
+        }
+
         function renderVehicleTable() {
             const tbody = document.getElementById('vehicleTableBody');
             tbody.innerHTML = '';
@@ -578,8 +681,8 @@
                     <td>${vehicle['Biển số'] || ''}</td>
                     <td>${vehicle['Tài xế'] || ''}</td>
                     <td>${vehicle['SĐT Tài xế'] || ''}</td>
-                    <td>${vehicle['Ngày xuất xe'] || ''}</td>
-                    <td>${vehicle['Ngày dự kiến'] || ''}</td>
+                    <td>${formatDate(vehicle['Ngày xuất xe'])}</td>
+                    <td>${formatDate(vehicle['Ngày dự kiến'])}</td>
                     <td><span class="status-badge status-${vehicle['Trạng thái'] || 'pending'}">${getStatusText(vehicle['Trạng thái'])}</span></td>
                     <td>
                         <button class="btn" onclick="editVehicle('${vehicle.ID}')">Sửa</button>
@@ -594,20 +697,47 @@
             const tbody = document.getElementById('assignmentTableBody');
             tbody.innerHTML = '';
             
-            assignments.forEach(assignment => {
-                const vehicle = vehicles.find(v => v.ID === assignment['Xe']);
-                const bill = bills.find(b => b.ID === assignment['Bill']);
+            // Hiển thị dữ liệu từ sheet Bill
+            bills.forEach((bill, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${assignment.ID || ''}</td>
-                    <td>${vehicle ? vehicle['Biển số'] : assignment['Xe']}</td>
-                    <td>${bill ? bill['Tên đơn hàng'] : assignment['Bill']}</td>
-                    <td>${assignment['Số thứ tự'] || ''}</td>
-                    <td>${assignment['Số lượng hàng'] || ''}</td>
-                    <td>${assignment['Ghi chú'] || ''}</td>
                     <td>
-                        <button class="btn" onclick="editAssignment('${assignment.ID}')">Sửa</button>
-                        <button class="btn btn-danger" onclick="deleteAssignment('${assignment.ID}')">Xóa</button>
+                        <input type="number" 
+                               value="${bill['STT'] || (index + 1)}" 
+                               min="1" 
+                               style="width: 60px; padding: 4px; border: 1px solid #ddd; border-radius: 3px;"
+                               onchange="updateBillSTT('${bill['Số Bill']}', this.value)"
+                               onblur="updateBillSTT('${bill['Số Bill']}', this.value)">
+                    </td>
+                    <td>${bill['Số Bill'] || ''}</td>
+                    <td>${formatDate(bill['Ngày bốc']) || ''}</td>
+                    <td>${bill['Mã khách gửi'] || ''}</td>
+                    <td>${bill['Tên khách gửi'] || ''}</td>
+                    <td>${bill['Xã'] || ''}</td>
+                    <td>${bill['Địa chỉ'] || ''}</td>
+                    <td>${bill['Địa chỉ đã lưu'] || ''}</td>
+                    <td>${bill['Tên khách nhận'] || ''}</td>
+                    <td>${bill['Địa chỉ nhận'] || ''}</td>
+                    <td>${bill['Tỉnh nhận'] || ''}</td>
+                    <td>${bill['Xã nhận'] || ''}</td>
+                    <td>${bill['SĐT khách nhận'] || ''}</td>
+                    <td>${bill['Dịch vụ GTGT'] || ''}</td>
+                    <td>${bill['Nội dung hàng hóa'] || ''}</td>
+                    <td>${bill['Số kiện'] || ''}</td>
+                    <td>${bill['Trọng lượng thực'] || ''}</td>
+                    <td>${bill['Thể tích'] || ''}</td>
+                    <td>${bill['Đơn vị tính cước'] || ''}</td>
+                    <td>${bill['Đơn giá'] || ''}</td>
+                    <td>${bill['Phụ phí'] || ''}</td>
+                    <td>${bill['VAT'] || ''}</td>
+                    <td>${bill['Thành tiền'] || ''}</td>
+                    <td>${bill['Người thanh toán'] || ''}</td>
+                    <td>${bill['COD'] || ''}</td>
+                    <td>${bill['Trạng thái thanh toán'] || ''}</td>
+                    <td>${bill['Ghi chú'] || ''}</td>
+                    <td>
+                        <button class="btn" onclick="editBill('${bill['Số Bill']}')">Sửa</button>
+                        <button class="btn btn-danger" onclick="deleteBill('${bill['Số Bill']}')">Xóa</button>
                     </td>
                 `;
                 tbody.appendChild(row);
@@ -624,8 +754,8 @@
                 div.style.cssText = 'border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px;';
                 div.innerHTML = `
                     <h4>Xe ${vehicle['Biển số']} - ${vehicle['Tài xế']} <span class="status-badge status-${vehicle['Trạng thái'] || 'pending'}">${getStatusText(vehicle['Trạng thái'])}</span></h4>
-                    <p><strong>Ngày xuất xe:</strong> ${vehicle['Ngày xuất xe'] || ''}</p>
-                    <p><strong>Ngày dự kiến:</strong> ${vehicle['Ngày dự kiến'] || ''}</p>
+                    <p><strong>Ngày xuất xe:</strong> ${formatDate(vehicle['Ngày xuất xe'])}</p>
+                    <p><strong>Ngày dự kiến:</strong> ${formatDate(vehicle['Ngày dự kiến'])}</p>
                     <h5>Đơn hàng đã xếp:</h5>
                     <ul>
                         ${vehicleAssignments.map(a => {
@@ -939,6 +1069,288 @@
         function editAssignment(assignmentId) {
             // Implementation for editing assignment
             alert('Chức năng sửa phân phối đang được phát triển');
+        }
+
+        function updateAssignmentOrder(assignmentId, newOrder) {
+            const assignment = assignments.find(a => a.ID === assignmentId);
+            if (assignment) {
+                assignment['Số thứ tự'] = parseInt(newOrder) || 1;
+                
+                // Cập nhật local storage
+                upsertLocalAssignment(assignment);
+                
+                // Tự động sắp xếp lại table
+                renderAssignmentTable();
+                
+                console.log(`Updated assignment ${assignmentId} order to ${newOrder}`);
+            }
+        }
+
+        function updateBillSTT(billNumber, newSTT) {
+            const bill = bills.find(b => b['Số Bill'] === billNumber);
+            if (bill) {
+                bill['STT'] = parseInt(newSTT) || 1;
+                
+                // Cập nhật local storage
+                upsertLocalBill(bill);
+                
+                // Cập nhật vào Google Sheet
+                updateBillSTTInSheet(bill);
+                
+                // Tự động sắp xếp lại table
+                renderAssignmentTable();
+                
+                console.log(`Updated bill ${billNumber} STT to ${newSTT}`);
+            }
+        }
+
+        async function updateBillSTTInSheet(bill) {
+            try {
+                const response = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'updateBillSTT',
+                        sheetId: SHEET_ID,
+                        sheetName: BILL_SHEET,
+                        billNumber: bill['Số Bill'],
+                        stt: bill['STT']
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Lỗi cập nhật STT vào sheet');
+                }
+                
+                console.log('STT updated in sheet successfully');
+            } catch (error) {
+                console.error('Error updating STT in sheet:', error);
+                // Không hiển thị lỗi cho user để không làm gián đoạn workflow
+            }
+        }
+
+        function sortBillsBySTT() {
+            // Sắp xếp bills theo STT
+            bills.sort((a, b) => {
+                const sttA = parseInt(a['STT']) || 0;
+                const sttB = parseInt(b['STT']) || 0;
+                return sttA - sttB;
+            });
+            
+            // Cập nhật lại STT liên tiếp
+            bills.forEach((bill, index) => {
+                bill['STT'] = index + 1;
+                upsertLocalBill(bill);
+            });
+            
+            // Cập nhật tất cả STT vào sheet
+            updateAllSTTInSheet();
+            
+            // Render lại table
+            renderAssignmentTable();
+            
+            alert('Đã sắp xếp và cập nhật STT thành công!');
+        }
+
+        async function updateAllSTTInSheet() {
+            try {
+                const response = await fetch('/api/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'updateAllSTT',
+                        sheetId: SHEET_ID,
+                        sheetName: BILL_SHEET,
+                        bills: bills
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Lỗi cập nhật STT vào sheet');
+                }
+                
+                console.log('All STT updated in sheet successfully');
+            } catch (error) {
+                console.error('Error updating all STT in sheet:', error);
+                alert('Đã sắp xếp thành công nhưng chưa cập nhật vào Sheet. Lỗi: ' + error.message);
+            }
+        }
+
+        function upsertLocalBill(bill) {
+            const arr = readLocalBills();
+            const idx = arr.findIndex(x => String(x['Số Bill']).toLowerCase() === String(bill['Số Bill']).toLowerCase());
+            if (idx >= 0) arr[idx] = bill; else arr.push(bill);
+            writeLocalBills(arr);
+        }
+
+        function readLocalBills() {
+            try { return JSON.parse(localStorage.getItem('goixe_bills_v1') || '[]'); } catch { return []; }
+        }
+
+        function writeLocalBills(data) {
+            localStorage.setItem('goixe_bills_v1', JSON.stringify(data));
+        }
+
+        function editBill(billNumber) {
+            alert('Chức năng sửa Bill đang được phát triển');
+        }
+
+        function deleteBill(billNumber) {
+            if (confirm('Bạn có chắc muốn xóa Bill này?')) {
+                bills = bills.filter(b => b['Số Bill'] !== billNumber);
+                renderAssignmentTable();
+                alert('Đã xóa Bill thành công!');
+            }
+        }
+
+        // Function to properly encode Vietnamese text for PDF
+        function encodeVietnameseText(text) {
+            if (!text) return '';
+            // Keep Vietnamese characters with diacritics intact
+            return String(text);
+        }
+
+        function exportAssignmentsToPDF() {
+            try {
+                // Tạo một div ẩn để chứa bảng cho PDF
+                const printDiv = document.createElement('div');
+                printDiv.style.cssText = `
+                    position: absolute;
+                    left: -9999px;
+                    top: -9999px;
+                    width: 297mm;
+                    background: white;
+                    font-family: 'Segoe UI', 'Arial Unicode MS', 'Arial', 'Tahoma', sans-serif;
+                    font-size: 12px;
+                    line-height: 1.4;
+                `;
+                
+                // Tạo header
+                const header = document.createElement('div');
+                header.style.cssText = 'text-align: center; margin-bottom: 20px;';
+                header.innerHTML = `
+                    <h1 style="font-size: 18px; margin: 0; color: #2c3e50;">BÁO CÁO ĐƠN HÀNG BILL</h1>
+                    <p style="font-size: 12px; margin: 5px 0; color: #666;">Ngày xuất báo cáo: ${new Date().toLocaleDateString('vi-VN')}</p>
+                `;
+                printDiv.appendChild(header);
+                
+                // Tạo bảng
+                const table = document.createElement('table');
+                table.style.cssText = `
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 10px;
+                    margin-bottom: 20px;
+                `;
+                
+                // Header của bảng
+                const thead = document.createElement('thead');
+                thead.innerHTML = `
+                    <tr style="background-color: #34495e; color: white;">
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">STT</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Số Bill</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Ngày bốc</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Khách gửi</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Khách nhận</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Địa chỉ nhận</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Tỉnh</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Nội dung</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Số kiện</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Trọng lượng</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Thành tiền</th>
+                        <th style="border: 1px solid #ddd; padding: 8px; text-align: center;">Trạng thái</th>
+                    </tr>
+                `;
+                table.appendChild(thead);
+                
+                // Body của bảng
+                const tbody = document.createElement('tbody');
+                
+                // Sắp xếp bills theo STT
+                const sortedBills = [...bills].sort((a, b) => {
+                    const sttA = parseInt(a['STT']) || 0;
+                    const sttB = parseInt(b['STT']) || 0;
+                    return sttA - sttB;
+                });
+                
+                sortedBills.forEach((bill, index) => {
+                    const row = document.createElement('tr');
+                    row.style.cssText = index % 2 === 0 ? 'background-color: #f8f9fa;' : 'background-color: white;';
+                    row.innerHTML = `
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${bill['STT'] || (index + 1)}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px;">${bill['Số Bill'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px;">${formatDate(bill['Ngày bốc']) || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px;">${bill['Tên khách gửi'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px;">${bill['Tên khách nhận'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; max-width: 100px; word-wrap: break-word;">${bill['Địa chỉ nhận'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px;">${bill['Tỉnh nhận'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; max-width: 80px; word-wrap: break-word;">${bill['Nội dung hàng hóa'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${bill['Số kiện'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${bill['Trọng lượng thực'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px; text-align: center;">${bill['Thành tiền'] || ''}</td>
+                        <td style="border: 1px solid #ddd; padding: 6px;">${bill['Trạng thái thanh toán'] || ''}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+                
+                table.appendChild(tbody);
+                printDiv.appendChild(table);
+                
+                // Footer
+                const footer = document.createElement('div');
+                footer.style.cssText = 'text-align: center; margin-top: 20px; font-size: 12px;';
+                footer.innerHTML = `<p><strong>Tổng số đơn hàng: ${bills.length}</strong></p>`;
+                printDiv.appendChild(footer);
+                
+                // Thêm vào DOM
+                document.body.appendChild(printDiv);
+                
+                // Chụp ảnh và tạo PDF
+                html2canvas(printDiv, {
+                    scale: 2,
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
+                }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF('l', 'mm', 'a4');
+                    
+                    const imgWidth = 297; // A4 width in mm
+                    const pageHeight = 210; // A4 height in mm
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                    let heightLeft = imgHeight;
+                    
+                    let position = 0;
+                    
+                    doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                    
+                    while (heightLeft >= 0) {
+                        position = heightLeft - imgHeight;
+                        doc.addPage();
+                        doc.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+                    
+                    // Lưu file
+                    const fileName = `Bao_cao_don_hang_${new Date().toISOString().split('T')[0]}.pdf`;
+                    doc.save(fileName);
+                    
+                    // Xóa div tạm
+                    document.body.removeChild(printDiv);
+                    
+                    alert('Đã xuất PDF thành công với ký tự tiếng Việt đầy đủ!');
+                }).catch(error => {
+                    console.error('Error generating PDF:', error);
+                    document.body.removeChild(printDiv);
+                    alert('Lỗi khi xuất PDF: ' + error.message);
+                });
+                
+            } catch (error) {
+                console.error('Error exporting PDF:', error);
+                alert('Lỗi khi xuất PDF: ' + error.message);
+            }
         }
 
         function deleteAssignment(assignmentId) {

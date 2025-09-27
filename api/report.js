@@ -127,6 +127,110 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, deleted: true });
     }
 
+    if (action === 'updateBillSTT') {
+      const { billNumber, stt } = req.body;
+      if (!sheetId || !sheetName || !billNumber || !stt) {
+        return res.status(400).json({ ok: false, error: 'Missing sheetId/sheetName/billNumber/stt' });
+      }
+
+      // Read header to find STT column
+      const headerResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!1:1`,
+      });
+      const headers = headerResp.data.values?.[0] || [];
+      const sttColIndex = headers.findIndex(h => norm(h) === 'stt');
+      if (sttColIndex === -1) {
+        return res.status(400).json({ ok: false, error: 'STT column not found' });
+      }
+
+      // Find row by Bill number (assuming it's in column B or find by "Số Bill")
+      const billColIndex = headers.findIndex(h => norm(h).includes('so_bill') || norm(h).includes('bill'));
+      if (billColIndex === -1) {
+        return res.status(400).json({ ok: false, error: 'Bill number column not found' });
+      }
+
+      const billResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!${columnLetter(billColIndex + 1)}:${columnLetter(billColIndex + 1)}`,
+      });
+      const billCol = billResp.data.values?.map(r => r[0]) || [];
+      const rowIndex = billCol.findIndex((v, i) => i > 0 && String(v || '').trim() === String(billNumber).trim());
+      
+      if (rowIndex === -1) {
+        return res.status(404).json({ ok: false, error: 'Bill number not found' });
+      }
+
+      const targetRow = rowIndex + 1;
+      const sttColumn = columnLetter(sttColIndex + 1);
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!${sttColumn}${targetRow}`,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: { values: [[stt]] },
+      });
+
+      return res.status(200).json({ ok: true, updated: true });
+    }
+
+    if (action === 'updateAllSTT') {
+      const { bills } = req.body;
+      if (!sheetId || !sheetName || !bills || !Array.isArray(bills)) {
+        return res.status(400).json({ ok: false, error: 'Missing sheetId/sheetName/bills' });
+      }
+
+      // Read header to find STT and Bill columns
+      const headerResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!1:1`,
+      });
+      const headers = headerResp.data.values?.[0] || [];
+      const sttColIndex = headers.findIndex(h => norm(h) === 'stt');
+      const billColIndex = headers.findIndex(h => norm(h).includes('so_bill') || norm(h).includes('bill'));
+      
+      if (sttColIndex === -1 || billColIndex === -1) {
+        return res.status(400).json({ ok: false, error: 'STT or Bill column not found' });
+      }
+
+      // Prepare batch update
+      const requests = [];
+      const sttColumn = columnLetter(sttColIndex + 1);
+      const billColumn = columnLetter(billColIndex + 1);
+
+      // Get all current data to find matching rows
+      const allDataResp = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `${sheetName}!A:Z`,
+      });
+      const allData = allDataResp.data.values || [];
+
+      bills.forEach(bill => {
+        const billNumber = bill['Số Bill'];
+        const stt = bill['STT'];
+        
+        // Find row by bill number
+        for (let i = 1; i < allData.length; i++) {
+          if (allData[i][billColIndex] && String(allData[i][billColIndex]).trim() === String(billNumber).trim()) {
+            requests.push({
+              range: `${sheetName}!${sttColumn}${i + 1}`,
+              values: [[stt]]
+            });
+            break;
+          }
+        }
+      });
+
+      if (requests.length > 0) {
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: sheetId,
+          valueInputOption: 'USER_ENTERED',
+          requestBody: { valueInputOption: 'USER_ENTERED', data: requests },
+        });
+      }
+
+      return res.status(200).json({ ok: true, updated: requests.length });
+    }
+
     return res.status(400).json({ ok: false, error: 'Unknown action' });
   } catch (e) {
     console.error(e);
