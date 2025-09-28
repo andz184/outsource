@@ -231,7 +231,6 @@
         <div class="nav-tabs">
             <div class="nav-tab active" onclick="showTab('vehicles')">Quản lý Xe</div>
             <div class="nav-tab" onclick="showTab('assignments')">Phân phối Đơn hàng</div>
-            <div class="nav-tab" onclick="showTab('status')">Trạng thái Xe</div>
             <div class="nav-tab" onclick="showTab('unassigned')">Xếp hàng</div>
         </div>
 
@@ -350,14 +349,7 @@
             </div>
         </div>
 
-        <!-- Tab 3: Trạng thái Xe -->
-        <div id="status" class="tab-content">
-            <h3>Trạng thái các Xe</h3>
-            <div id="vehicleStatusList">
-            </div>
-        </div>
-
-        <!-- Tab 4: Xếp hàng -->
+        <!-- Tab 3: Xếp hàng -->
         <div id="unassigned" class="tab-content">
             <h3>Bảng xếp hàng</h3>
             <div style="overflow-x: auto; max-height: 600px; overflow-y: auto;">
@@ -732,9 +724,7 @@
             event.target.classList.add('active');
             
             // Load data for specific tabs
-            if (tabName === 'status') {
-                loadVehicleStatus();
-            } else if (tabName === 'unassigned') {
+            if (tabName === 'unassigned') {
                 loadUnassignedOrders();
             }
         }
@@ -990,7 +980,6 @@
             
             renderVehicleTable();
             renderAssignmentTable();
-            loadVehicleStatus();
             loadUnassignedOrders();
         }
 
@@ -1096,29 +1085,6 @@
             });
         }
 
-        function loadVehicleStatus() {
-            const container = document.getElementById('vehicleStatusList');
-            container.innerHTML = '';
-            
-            vehicles.forEach(vehicle => {
-                const vehicleAssignments = assignments.filter(a => a['Xe'] === vehicle.ID);
-                const div = document.createElement('div');
-                div.style.cssText = 'border: 1px solid #ddd; margin: 10px 0; padding: 15px; border-radius: 5px;';
-                div.innerHTML = `
-                    <h4>Xe ${vehicle['Biển số']} - ${vehicle['Tài xế']} <span class="status-badge status-${vehicle['Trạng thái'] || 'pending'}">${getStatusText(vehicle['Trạng thái'])}</span></h4>
-                    <p><strong>Ngày xuất xe:</strong> ${formatDate(vehicle['Ngày xuất xe'])}</p>
-                    <p><strong>Ngày dự kiến:</strong> ${formatDate(vehicle['Ngày dự kiến'])}</p>
-                    <h5>Đơn hàng đã xếp:</h5>
-                    <ul>
-                        ${vehicleAssignments.map(a => {
-                            const bill = bills.find(b => b.ID === a['Bill']);
-                            return `<li>${bill ? bill['Tên đơn hàng'] : a['Bill']} - Số lượng: ${a['Số lượng hàng']}</li>`;
-                        }).join('')}
-                    </ul>
-                `;
-                container.appendChild(div);
-            });
-        }
 
         function loadUnassignedOrders() {
             const tbody = document.getElementById('unassignedTableBody');
